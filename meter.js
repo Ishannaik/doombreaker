@@ -2,7 +2,9 @@
 // Shared by content scripts (isolated world global) and node tests (module.exports).
 
 const DBMeter = {
-  CFG: { BUDGET_PX: 40000, VIDEO_HIT: 0.06, HEAL_PER_SEC: 0.008, IDLE_MS: 3000 },
+  // IDLE_MS 20s: pausing to read a post is still doomscrolling — healing only
+  // starts after you've genuinely stopped. HEAL_PER_SEC 0.003 ≈ 5.5min full heal.
+  CFG: { BUDGET_PX: 40000, VIDEO_HIT: 0.06, HEAL_PER_SEC: 0.003, IDLE_MS: 20000 },
 
   // Fresh state. `last` = timestamp of last input; `lastTick` = previous tick() call time.
   create(now) {
