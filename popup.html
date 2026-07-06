@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  body {
+    width: 200px;
+    margin: 0;
+    padding: 12px;
+    background: #121212;
+    color: #ddd;
+    font: 13px/1.5 system-ui, sans-serif;
+  }
+  h1 {
+    font-size: 13px;
+    margin: 0 0 8px;
+    color: #fff;
+    letter-spacing: .5px;
+  }
+  label.site {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 0;
+    cursor: pointer;
+  }
+  input[type="checkbox"] { accent-color: #e33; }
+  .sens {
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid #2a2a2a;
+  }
+  .sens-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #999;
+  }
+  input[type="range"] {
+    width: 100%;
+    accent-color: #e33;
+    margin: 4px 0 0;
+  }
+</style>
+</head>
+<body>
+  <h1>DoomBreaker</h1>
+  <label class="site"><input type="checkbox" id="site-x"> X / Twitter</label>
+  <label class="site"><input type="checkbox" id="site-reddit"> Reddit</label>
+  <label class="site"><input type="checkbox" id="site-instagram"> Instagram</label>
+  <label class="site"><input type="checkbox" id="site-youtube"> YouTube Shorts</label>
+  <label class="site"><input type="checkbox" id="site-linkedin"> LinkedIn</label>
+  <div class="sens">
+    <div class="sens-row">
+      <span>Sensitivity</span>
+      <span id="sens-val">1</span>
+    </div>
+    <input type="range" id="sensitivity" min="0.5" max="2" step="0.25" value="1">
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

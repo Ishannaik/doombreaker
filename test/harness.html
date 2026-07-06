@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>DoomBreaker harness</title>
+<link rel="stylesheet" href="../effects.css">
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: #101014;
+    color: #cfcfd6;
+    font: 15px/1.5 system-ui, sans-serif;
+  }
+  #fake-header {
+    position: fixed; /* intentional: breaks visibly once html.db-blur filters body */
+    top: 0; left: 0; right: 0;
+    height: 48px;
+    background: #17171d;
+    border-bottom: 1px solid #2a2a33;
+    display: flex; align-items: center;
+    padding: 0 16px;
+    font-weight: 600; color: #e8e8ee;
+    z-index: 100;
+  }
+  #controls {
+    position: fixed; /* also breaks under filter — that is the demo */
+    top: 60px; left: 16px;
+    z-index: 101;
+    background: #1b1b22;
+    border: 1px solid #33333d;
+    border-radius: 8px;
+    padding: 10px;
+    display: flex; flex-wrap: wrap; gap: 6px;
+    max-width: 240px;
+  }
+  #controls button {
+    background: #2b2b36;
+    color: #e8e8ee;
+    border: 1px solid #44444f;
+    border-radius: 5px;
+    padding: 5px 10px;
+    font: 13px system-ui, sans-serif;
+    cursor: pointer;
+  }
+  #controls button:hover { background: #3a3a48; }
+  #feed {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 64px 16px 120px;
+  }
+  .post {
+    background: #1a1a21;
+    border: 1px solid #2a2a33;
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 14px;
+  }
+  .post .who { color: #8f8fa3; font-size: 13px; margin-bottom: 6px; }
+</style>
+</head>
+<body>
+
+<div id="fake-header">DoomFeed — fixed header (breaks on purpose at d &ge; 0.3)</div>
+
+<div id="controls">
+  <button data-d="0">d=0</button>
+  <button data-d="0.4">d=0.4</button>
+  <button data-d="0.65">d=0.65</button>
+  <button data-d="0.8">d=0.8</button>
+  <button data-d="1.0">d=1.0</button>
+  <button id="btn-wheel">wheel &times;50 (deltaY 120)</button>
+</div>
+
+<div id="feed"></div>
+
+<script>
+  // ---- chrome stub (must exist before meter.js / content.js load) ----
+  window.chrome = {
+    storage: {
+      local: {
+        get: function (keys, cb) {
+          var result = {};
+          if (typeof cb === 'function') cb(result);
+          return Promise.resolve(result);
+        },
+        set: function (items, cb) {
+          if (typeof cb === 'function') cb();
+          return Promise.resolve();
+        }
+      },
+      onChanged: {
+        addListener: function () {}
+      }
+    },
+    runtime: {
+      sendMessage: function (msg) {
+        console.log('[harness] runtime.sendMessage', msg);
+        return Promise.resolve();
+      }
+    }
+  };
+
+  // ---- fake feed: ~30 posts, varied heights ----
+  (function () {
+    var lorem = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. ' +
+      'Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. ' +
+      'Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris ' +
+      'nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in ' +
+      'reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. ';
+    var feed = document.getElementById('feed');
+    for (var i = 1; i <= 30; i++) {
+      var post = document.createElement('div');
+      post.className = 'post';
+      var reps = 1 + (i % 4); // varied heights
+      post.innerHTML = '<div class="who">@doomuser' + i + ' &middot; ' + i + 'h</div>' +
+        '<div>' + lorem.repeat(reps) + '</div>';
+      feed.appendChild(post);
+    }
+  })();
+</script>
+
+<script src="../meter.js"></script>
+<script src="../content.js"></script>
+
+<script>
+  // ---- controls (content.js exposes window.__db.set(d) on file://) ----
+  (function () {
+    function setD(d) {
+      if (window.__db && typeof window.__db.set === 'function') {
+        window.__db.set(d);
+      } else {
+        console.warn('[harness] window.__db.set not available — is content.js loaded on file://?');
+      }
+    }
+
+    document.querySelectorAll('#controls button[data-d]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        setD(parseFloat(btn.dataset.d));
+      });
+    });
+
+    document.getElementById('btn-wheel').addEventListener('click', function () {
+      for (var i = 0; i < 50; i++) {
+        document.body.dispatchEvent(new WheelEvent('wheel', {
+          deltaY: 120,
+          deltaMode: 0,
+          bubbles: true,
+          cancelable: true
+        }));
+      }
+      console.log('[harness] dispatched 50 wheel events (6000px total)');
+    });
+  })();
+</script>
+
+</body>
+</html>

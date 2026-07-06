@@ -1,0 +1,155 @@
+/* DoomBreaker visual effects.
+   content.js sets --d (0..1) on <html> and toggles html.db-blur / html.db-glitch / html.db-shake.
+   Overlay (#db-overlay) lives on documentElement so it never inherits body's filter. */
+
+/* ---------- overlay ---------- */
+
+#db-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2147483647;
+}
+
+#db-overlay .db-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center,
+    transparent 30%,
+    rgba(0, 0, 0, 0.55) 75%,
+    rgba(0, 0, 0, 0.95) 100%);
+  /* invisible below d=0.25, fully dark near d=0.96 (CSS clamps opacity to 0..1) */
+  opacity: calc((var(--d, 0) - 0.25) * 1.4);
+}
+
+#db-overlay #db-cracks {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* ---------- blur / grayscale (d >= 0.30) ---------- */
+/* Filtering body makes it the containing block for position:fixed descendants —
+   fixed headers visually break. That breakage is intentional per spec. */
+
+html.db-blur body {
+  filter: blur(calc((var(--d, 0) - 0.3) / 0.7 * 5px))
+          grayscale(calc((var(--d, 0) - 0.3) / 0.7));
+}
+
+/* ---------- glitch (d >= 0.60) ---------- */
+/* Animating `filter` overrides the db-blur rule while the animation runs, so every
+   keyframe re-states the base blur/grayscale (d>=0.6 always implies db-blur).
+   steps(1,end) = hard cuts, no tweening. Mostly calm with three short bursts
+   per 2.5s cycle so it reads as intermittent hardware failure, not a strobe. */
+
+@keyframes db-glitch {
+  0%, 100% {
+    filter: blur(calc((var(--d, 0) - 0.3) / 0.7 * 5px))
+            grayscale(calc((var(--d, 0) - 0.3) / 0.7));
+    clip-path: none;
+    transform: none;
+  }
+
+  /* burst 1 — three cuts in ~140ms */
+  7% {
+    filter: blur(calc((var(--d, 0) - 0.3) / 0.7 * 5px))
+            grayscale(calc((var(--d, 0) - 0.3) / 0.7))
+            hue-rotate(300deg) saturate(4);
+    clip-path: inset(8% 0 61% 0);
+    transform: translateX(-7px);
+  }
+  9% {
+    filter: blur(calc((var(--d, 0) - 0.3) / 0.7 * 5px))
+            grayscale(calc((var(--d, 0) - 0.3) / 0.7))
+            invert(1) hue-rotate(90deg);
+    clip-path: inset(55% 0 12% 0);
+    transform: translateX(6px);
+  }
+  10.5% {
+    filter: blur(calc((var(--d, 0) - 0.3) / 0.7 * 5px))
+            grayscale(calc((var(--d, 0) - 0.3) / 0.7))
+            hue-rotate(160deg) contrast(2);
+    clip-path: inset(32% 0 33% 0);
+    transform: translateX(-4px);
+  }
+  12% {
+    filter: blur(calc((var(--d, 0) - 0.3) / 0.7 * 5px))
+            grayscale(calc((var(--d, 0) - 0.3) / 0.7));
+    clip-path: none;
+    transform: none;
+  }
+
+  /* burst 2 — single hard invert flash */
+  46% {
+    filter: blur(calc((var(--d, 0) - 0.3) / 0.7 * 5px))
+            grayscale(calc((var(--d, 0) - 0.3) / 0.7))
+            invert(1);
+    clip-path: none;
+    transform: translateX(3px);
+  }
+  47.5% {
+    filter: blur(calc((var(--d, 0) - 0.3) / 0.7 * 5px))
+            grayscale(calc((var(--d, 0) - 0.3) / 0.7));
+    clip-path: none;
+    transform: none;
+  }
+
+  /* burst 3 — slice tear, two cuts */
+  78% {
+    filter: blur(calc((var(--d, 0) - 0.3) / 0.7 * 5px))
+            grayscale(calc((var(--d, 0) - 0.3) / 0.7))
+            hue-rotate(220deg) saturate(3);
+    clip-path: inset(70% 0 4% 0);
+    transform: translateX(8px);
+  }
+  80% {
+    filter: blur(calc((var(--d, 0) - 0.3) / 0.7 * 5px))
+            grayscale(calc((var(--d, 0) - 0.3) / 0.7))
+            invert(1) hue-rotate(45deg);
+    clip-path: inset(2% 0 78% 0);
+    transform: translateX(-5px);
+  }
+  81.5% {
+    filter: blur(calc((var(--d, 0) - 0.3) / 0.7 * 5px))
+            grayscale(calc((var(--d, 0) - 0.3) / 0.7));
+    clip-path: none;
+    transform: none;
+  }
+}
+
+html.db-glitch body {
+  animation: db-glitch 2.5s steps(1, end) infinite;
+}
+
+/* ---------- shake (d >= 0.90) ---------- */
+
+@keyframes db-shake {
+  0%   { transform: translate(0, 0); }
+  25%  { transform: translate(calc(var(--d, 0) * -6px), calc(var(--d, 0) * 3px)); }
+  50%  { transform: translate(calc(var(--d, 0) * 5px),  calc(var(--d, 0) * -5px)); }
+  75%  { transform: translate(calc(var(--d, 0) * -3px), calc(var(--d, 0) * -6px)); }
+  100% { transform: translate(calc(var(--d, 0) * 6px),  calc(var(--d, 0) * 4px)); }
+}
+
+html.db-shake body {
+  animation: db-shake 0.15s linear infinite;
+}
+
+/* Both classes on (d >= 0.90): run both animations. db-shake listed last so its
+   transform wins over glitch's transform jerks; glitch keeps filter/clip-path. */
+html.db-glitch.db-shake body {
+  animation: db-glitch 2.5s steps(1, end) infinite,
+             db-shake 0.15s linear infinite;
+}
+
+/* ---------- reduced motion ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  html.db-glitch body,
+  html.db-shake body,
+  html.db-glitch.db-shake body {
+    animation: none;
+  }
+}
