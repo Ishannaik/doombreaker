@@ -63,7 +63,7 @@ html.db-blur body {
   9% {
     filter: blur(calc((var(--d, 0) - 0.3) / 0.7 * 5px))
             grayscale(calc((var(--d, 0) - 0.3) / 0.7))
-            invert(1) hue-rotate(90deg);
+            hue-rotate(90deg) saturate(5) brightness(0.75);
     clip-path: inset(55% 0 12% 0);
     transform: translateX(6px);
   }
@@ -81,11 +81,12 @@ html.db-blur body {
     transform: none;
   }
 
-  /* burst 2 — single hard invert flash */
+  /* burst 2 — single hard brown-out dip (dark, never bright: no invert —
+     invert(1) on dark-theme sites flashes the whole screen white) */
   46% {
     filter: blur(calc((var(--d, 0) - 0.3) / 0.7 * 5px))
             grayscale(calc((var(--d, 0) - 0.3) / 0.7))
-            invert(1);
+            brightness(0.5) contrast(1.6);
     clip-path: none;
     transform: translateX(3px);
   }
@@ -107,7 +108,7 @@ html.db-blur body {
   80% {
     filter: blur(calc((var(--d, 0) - 0.3) / 0.7 * 5px))
             grayscale(calc((var(--d, 0) - 0.3) / 0.7))
-            invert(1) hue-rotate(45deg);
+            hue-rotate(45deg) saturate(6) brightness(0.7);
     clip-path: inset(2% 0 78% 0);
     transform: translateX(-5px);
   }
