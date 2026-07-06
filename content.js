@@ -29,6 +29,9 @@
     if (!site) return;
 
     const CFG = DBMeter.CFG;
+    // One shared damage pool across ALL sites: breaking X and hopping to
+    // Reddit must not hand you a fresh budget. (settings.sites stays per-site.)
+    const DMG_KEY = 'all';
     const THRESHOLDS = [0.60, 0.70, 0.80, 0.90, 0.97];
     const SVG_NS = 'http://www.w3.org/2000/svg';
     const clamp01 = v => Math.min(1, Math.max(0, Number(v) || 0));
@@ -242,7 +245,7 @@
       lastFlushedD = state.d;
       lastFlushAt = now;
       lastWriteT = now;
-      damageCache[site.key] = { d: state.d, t: now };
+      damageCache[DMG_KEY] = { d: state.d, t: now };
       try {
         if (cr && cr.storage && cr.storage.local) {
           cr.storage.local.set({ damage: damageCache });
@@ -258,7 +261,7 @@
             res = res || {};
             if (res.settings) applySettings(res.settings);
             damageCache = (res.damage && typeof res.damage === 'object') ? res.damage : {};
-            const entry = damageCache[site.key];
+            const entry = damageCache[DMG_KEY];
             // Skip if onChanged already adopted a newer cross-tab write.
             if (entry && typeof entry.d === 'number' && (entry.t || 0) > lastWriteT) {
               const elapsedSec = Math.max(0, (Date.now() - (entry.t || 0)) / 1000);
@@ -284,7 +287,7 @@
             }
             if (changes.damage && changes.damage.newValue) {
               damageCache = changes.damage.newValue;
-              const entry = damageCache[site.key];
+              const entry = damageCache[DMG_KEY];
               if (entry && typeof entry.t === 'number' && entry.t > lastWriteT) {
                 state.d = clamp01(entry.d);
                 lastWriteT = entry.t;
