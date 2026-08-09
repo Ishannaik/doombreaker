@@ -1,14 +1,14 @@
 # DoomBreaker
 
-The page breaks as you doom-scroll. Blur creeps in, color drains, darkness closes from the edges, the glass cracks, everything shakes — and at full damage the feed *genuinely stops loading* (network-level block). Stop scrolling and the page slowly heals.
+The page breaks as you doom-scroll. Blur creeps in, color drains, darkness closes from the edges, the glass cracks, and everything shakes. At full damage the feed stops loading (a network-level block). Stop scrolling and the page heals.
 
-No lockouts, no guilt modals. The discomfort is the wall.
+No lockouts. No guilt modals. The discomfort does the work.
 
 ## Sites
 - x.com / twitter.com (everywhere)
 - reddit.com (everywhere)
 - instagram.com (home feed + reels only)
-- youtube.com (**Shorts only** — regular videos untouched)
+- youtube.com (**Shorts only**; regular videos untouched)
 - linkedin.com (feed only)
 
 Shorts/Reels damage per *video watched* (~3× faster than scrolling).
@@ -26,6 +26,6 @@ One damage meter `d` (0→1) per site, fed by wheel distance (or videos advanced
 
 ## Dev
 - Unit tests: `node test/meter.test.mjs`
-- Visual harness: serve the repo root (`python -m http.server 8377`) and open `http://localhost:8377/test/harness.html` — buttons drive damage levels through the real pipeline.
+- Visual harness: serve the repo root (`python -m http.server 8377`) and open `http://localhost:8377/test/harness.html`. Buttons drive damage levels through the real pipeline.
 
 Spec: `docs/superpowers/specs/2026-07-06-doombreaker-design.md`
