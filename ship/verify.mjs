@@ -51,9 +51,10 @@ const cfg = await sw.evaluate(async () => {
   };
 });
 ok('manifest version matches release', cfg.version === '0.2.0', cfg.version);
-// The fetch is async after install; poll storage for it (up to 10s).
+// The fetch is async after install; poll storage for it (up to 30s — the
+// GitHub raw fetch can be slow/flaky from some networks).
 let configSites = cfg.configSites;
-for (let i = 0; i < 20 && configSites === 0; i++) {
+for (let i = 0; i < 60 && configSites === 0; i++) {
   await new Promise((r) => setTimeout(r, 500));
   configSites = await sw.evaluate(async () => {
     const res = await chrome.storage.local.get('dbConfig');
@@ -188,11 +189,21 @@ const popupState = await popup.evaluate(() => ({
   hasTimeMinutes: !!document.getElementById('time-minutes'),
 }));
 ok('popup renders all toggles', popupState.hasOther && popupState.hasSlider && popupState.hasTimeEnabled && popupState.hasTimeMinutes, JSON.stringify(popupState));
-await popup.uncheck('#site-other');
+// Toggle through the real input event (switches hide the checkbox visually,
+// so drive the element directly rather than Playwright's actionability check).
+await popup.evaluate(() => {
+  const el = document.getElementById('site-other');
+  el.checked = false;
+  el.dispatchEvent(new Event('change'));
+});
 await popup.waitForTimeout(600);
 const saved = await sw.evaluate(async () => (await chrome.storage.local.get('settings')).settings.sites.other);
 ok('popup toggle persists to storage', saved === false, `other=${saved}`);
-await popup.check('#site-other');
+await popup.evaluate(() => {
+  const el = document.getElementById('site-other');
+  el.checked = true;
+  el.dispatchEvent(new Event('change'));
+});
 await popup.waitForTimeout(400);
 
 await ctx.close();

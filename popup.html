@@ -5,96 +5,257 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>DoomBreaker</title>
 <style>
+  :root {
+    --bg: #0b0b10;
+    --panel: #14141b;
+    --panel-hover: #181821;
+    --line: #23232e;
+    --line-hover: #34343f;
+    --accent: #ff3b30;
+    --text: #e8e8ef;
+    --muted: #8a8a99;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", "JetBrains Mono", Menlo, monospace;
+    --sans: "Helvetica Neue", "Segoe UI", sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
   body {
-    width: 200px;
+    width: 264px;
     margin: 0;
-    padding: 12px;
-    background: #121212;
-    color: #ddd;
-    font: 13px/1.5 system-ui, sans-serif;
+    padding: 14px 14px 12px;
+    background:
+      radial-gradient(120% 55% at 50% -10%, rgba(255, 59, 48, 0.10), transparent 62%),
+      var(--bg);
+    color: var(--text);
+    font: 13px/1.45 var(--sans);
+    position: relative;
   }
-  h1 {
-    font-size: 13px;
-    margin: 0 0 8px;
+
+  /* faint scanline atmosphere */
+  body::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.016) 0 1px, transparent 1px 3px);
+    pointer-events: none;
+  }
+
+  /* ---------- header ---------- */
+  .head { position: relative; }
+  .head-top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+  .logo {
+    font: 800 13px/1 var(--sans);
+    letter-spacing: 0.14em;
     color: #fff;
-    letter-spacing: .5px;
   }
-  label.site {
+  .status {
+    font: 9px/1 var(--mono);
+    letter-spacing: 0.16em;
+    color: var(--muted);
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 2px 0;
-    cursor: pointer;
+    gap: 5px;
   }
-  input[type="checkbox"] { accent-color: #e33; }
-  input:focus-visible {
-    outline: 2px solid #fff;
-    outline-offset: 2px;
+  .status .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 6px rgba(255, 59, 48, 0.9);
   }
-  .sens {
-    margin-top: 10px;
-    padding-top: 8px;
-    border-top: 1px solid #2a2a2a;
+  .dmgline {
+    height: 3px;
+    margin-top: 9px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, var(--accent), #ff8a3d);
+    opacity: 0.75;
+    box-shadow: 0 0 12px rgba(255, 59, 48, 0.35);
   }
-  .sens-row {
+
+  /* ---------- groups ---------- */
+  .group { margin-top: 13px; }
+  .group-title {
+    font: 9px/1 var(--mono);
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    margin: 0 0 6px 2px;
+    text-transform: uppercase;
+  }
+
+  /* ---------- rows + switches ---------- */
+  .row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    font-size: 12px;
-    color: #999;
+    padding: 7px 10px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--panel);
+    margin-bottom: 6px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .row:hover { border-color: var(--line-hover); background: var(--panel-hover); }
+  .row-name { font-size: 12px; color: var(--text); }
+
+  .switch { position: relative; width: 32px; height: 18px; flex: none; }
+  .switch input {
+    position: absolute;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    cursor: pointer;
+  }
+  .switch .track {
+    position: absolute;
+    inset: 0;
+    background: #2a2a35;
+    border-radius: 999px;
+    transition: background 0.18s;
+  }
+  .switch .track::before {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #9a9aab;
+    transition: transform 0.18s, background 0.18s;
+  }
+  .switch input:checked + .track { background: var(--accent); box-shadow: 0 0 8px rgba(255, 59, 48, 0.35); }
+  .switch input:checked + .track::before { transform: translateX(14px); background: #fff; }
+  .switch input:focus-visible + .track { outline: 2px solid #fff; outline-offset: 2px; }
+
+  /* ---------- time limit ---------- */
+  .mins {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 10px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--panel);
+  }
+  .mins-label {
+    font: 9px/1 var(--mono);
+    letter-spacing: 0.14em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+  input[type="number"] {
+    width: 58px;
+    background: #0e0e14;
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 4px 6px;
+    font: 12px var(--mono);
+    text-align: center;
+  }
+  input[type="number"]:focus { border-color: var(--accent); outline: none; }
+
+  /* ---------- sensitivity ---------- */
+  .sens-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 2px 2px 0;
+  }
+  .sens-head label {
+    font: 9px/1 var(--mono);
+    letter-spacing: 0.16em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+  .badge {
+    font: 11px/1 var(--mono);
+    color: var(--accent);
+    padding: 2px 7px;
+    border: 1px solid rgba(255, 59, 48, 0.45);
+    border-radius: 6px;
+    background: rgba(255, 59, 48, 0.08);
   }
   input[type="range"] {
     width: 100%;
-    accent-color: #e33;
-    margin: 4px 0 0;
+    accent-color: var(--accent);
+    margin: 8px 0 2px;
+    height: 18px;
   }
-  .time {
-    margin-top: 10px;
-    padding-top: 8px;
-    border-top: 1px solid #2a2a2a;
-  }
-  .time-row {
+  .sens-scale {
     display: flex;
-    align-items: center;
     justify-content: space-between;
-    font-size: 12px;
-    color: #999;
-    margin-top: 4px;
+    font: 8px/1 var(--mono);
+    letter-spacing: 0.1em;
+    color: #5c5c6b;
+    text-transform: uppercase;
+    padding: 0 2px;
   }
-  input[type="number"] {
-    width: 56px;
-    background: #1b1b22;
-    color: #ddd;
-    border: 1px solid #33333d;
-    border-radius: 4px;
-    padding: 2px 4px;
-    font: 12px system-ui, sans-serif;
+
+  input[type="range"]:focus-visible,
+  input[type="number"]:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.7);
+    outline-offset: 2px;
+  }
+
+  /* ---------- footer ---------- */
+  .foot {
+    margin-top: 13px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--line);
+    text-align: center;
+    font: 9px/1 var(--mono);
+    letter-spacing: 0.08em;
+    color: #6d6d7c;
   }
 </style>
 </head>
 <body>
-  <h1>DoomBreaker</h1>
-  <label class="site"><input type="checkbox" id="site-x"> X / Twitter</label>
-  <label class="site"><input type="checkbox" id="site-reddit"> Reddit</label>
-  <label class="site"><input type="checkbox" id="site-instagram"> Instagram</label>
-  <label class="site"><input type="checkbox" id="site-youtube"> YouTube Shorts</label>
-  <label class="site"><input type="checkbox" id="site-linkedin"> LinkedIn</label>
-  <label class="site"><input type="checkbox" id="site-other"> Other sites</label>
-  <div class="time">
-    <label class="site"><input type="checkbox" id="time-enabled"> Daily time limit</label>
-    <div class="time-row">
-      <label for="time-minutes">Minutes / day</label>
+  <header class="head">
+    <div class="head-top">
+      <span class="logo">DOOMBREAKER</span>
+      <span class="status"><span class="dot"></span>ARMED</span>
+    </div>
+    <div class="dmgline"></div>
+  </header>
+
+  <section class="group">
+    <h2 class="group-title">Sites</h2>
+    <label class="row"><span class="row-name">X / Twitter</span><span class="switch"><input type="checkbox" id="site-x"><span class="track"></span></span></label>
+    <label class="row"><span class="row-name">Reddit</span><span class="switch"><input type="checkbox" id="site-reddit"><span class="track"></span></span></label>
+    <label class="row"><span class="row-name">Instagram</span><span class="switch"><input type="checkbox" id="site-instagram"><span class="track"></span></span></label>
+    <label class="row"><span class="row-name">YouTube Shorts</span><span class="switch"><input type="checkbox" id="site-youtube"><span class="track"></span></span></label>
+    <label class="row"><span class="row-name">LinkedIn</span><span class="switch"><input type="checkbox" id="site-linkedin"><span class="track"></span></span></label>
+    <label class="row"><span class="row-name">Other sites</span><span class="switch"><input type="checkbox" id="site-other"><span class="track"></span></span></label>
+  </section>
+
+  <section class="group">
+    <h2 class="group-title">Time limit</h2>
+    <label class="row"><span class="row-name">Daily limit</span><span class="switch"><input type="checkbox" id="time-enabled"><span class="track"></span></span></label>
+    <div class="mins">
+      <span class="mins-label">Minutes / day</span>
       <input type="number" id="time-minutes" min="15" max="720" step="15" value="60">
     </div>
-  </div>
-  <div class="sens">
-    <div class="sens-row">
-      <label for="sensitivity">Sensitivity</label>
-      <span id="sens-val" aria-live="polite">1</span>
+  </section>
+
+  <section class="group">
+    <div class="sens-head">
+      <label for="sensitivity">Brutality</label>
+      <span id="sens-val" class="badge" aria-live="polite">1</span>
     </div>
     <input type="range" id="sensitivity" min="0.5" max="2" step="0.25" value="1"
            aria-valuemin="0.5" aria-valuemax="2">
-  </div>
+    <div class="sens-scale"><span>gentle</span><span>brutal</span></div>
+  </section>
+
+  <footer class="foot">damage heals when you stop</footer>
   <script src="popup.js"></script>
 </body>
 </html>
