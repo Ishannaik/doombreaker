@@ -50,7 +50,7 @@ const cfg = await sw.evaluate(async () => {
     configSites: res.dbConfig ? res.dbConfig.data.sites.length : 0,
   };
 });
-ok('manifest version matches release', cfg.version === '0.2.0', cfg.version);
+ok('manifest version matches release', cfg.version === '0.3.0', cfg.version);
 // The fetch is async after install; poll storage for it (up to 30s — the
 // GitHub raw fetch can be slow/flaky from some networks).
 let configSites = cfg.configSites;
@@ -141,18 +141,21 @@ const today = () => new Date().toLocaleDateString('en-CA');
 // counting: enabled with a huge budget, wheel, active time must accumulate
 await sw.evaluate((dk) => chrome.storage.local.set({
   settings: { sites: { other: true }, timeLimit: { enabled: true, minutes: 720 } },
-  usage: { date: dk, seconds: 0 },
+  usage: { date: dk, seconds: {} },
 }), today());
 await e2eB.waitForTimeout(1200);
 await wheel(e2eB, 5, 1000);
 await e2eB.waitForTimeout(7000); // active window is 10s after input; flush every 5s
-const counted = await sw.evaluate(async () => (await chrome.storage.local.get('usage')).usage.seconds);
+const counted = await sw.evaluate(async () => {
+  const u = (await chrome.storage.local.get('usage')).usage;
+  return u && u.seconds ? (u.seconds.other || 0) : 0;
+});
 ok('time limit counts active scrolling', counted > 0, `seconds=${counted}`);
 
 // enforcement: budget exhausted -> full break visuals + feed-kill rules
 await sw.evaluate((dk) => chrome.storage.local.set({
   settings: { sites: { other: true }, timeLimit: { enabled: true, minutes: 1 } },
-  usage: { date: dk, seconds: 60 },
+  usage: { date: dk, seconds: { other: 60 } },
 }), today());
 await e2eB.waitForTimeout(2500);
 const forced = await e2eB.evaluate(() => ({
@@ -165,7 +168,7 @@ ok('time limit fires feed-kill', forcedRules >= 1, `rules=${forcedRules}`);
 
 // release: fresh budget + low damage -> kill rules removed
 await sw.evaluate((dk) => chrome.storage.local.set({
-  usage: { date: dk, seconds: 0 },
+  usage: { date: dk, seconds: {} },
   damage: { all: { d: 0.1, t: Date.now() } },
 }), today());
 await e2eB.waitForTimeout(2500);
@@ -198,10 +201,53 @@ ok('network-block toggle disables feed-kill', effRules === 0, `rules=${effRules}
 
 // restore everything and drop damage for the popup test
 await sw.evaluate(() => chrome.storage.local.set({
-  settings: { sites: { other: true }, sensitivity: 1, timeLimit: { enabled: false, minutes: 60 }, effects: { blur: true, cracks: true, glitch: true, shake: true, kill: true } },
+  settings: { sites: { other: true }, sensitivity: 1, timeLimit: { enabled: false, minutes: 60 }, effects: { blur: true, cracks: true, glitch: true, shake: true, kill: true }, healSpeed: 1 },
   damage: { all: { d: 0.1, t: Date.now() } },
 }));
 await e2eB.waitForTimeout(1500);
+
+// ---- SW usage accumulator: both tabs' time is kept, no lost updates ---------
+await sw.evaluate((dk) => chrome.storage.local.set({
+  settings: { sites: { other: true }, timeLimit: { enabled: true, minutes: 720 }, healSpeed: 1, effects: { blur: true, cracks: true, glitch: true, shake: true, kill: true } },
+  usage: { date: dk, seconds: {} },
+}), today());
+await e2e.waitForTimeout(1200);
+await wheel(e2e, 5, 1000);
+await e2eB.waitForTimeout(1200);
+await wheel(e2eB, 5, 1000);
+await e2e.waitForTimeout(7000); // both tabs report through the SW
+const both = await sw.evaluate(async () => (await chrome.storage.local.get('usage')).usage.seconds.other || 0);
+ok('usage accumulates from both tabs (SW single writer)', both >= 12, `seconds=${both}`);
+
+// ---- per-site limit override -----------------------------------------------
+await sw.evaluate((dk) => chrome.storage.local.set({
+  settings: { sites: { other: true }, timeLimit: { enabled: true, minutes: 720, perSite: { other: 1 } }, healSpeed: 1, effects: { blur: true, cracks: true, glitch: true, shake: true, kill: true } },
+  usage: { date: dk, seconds: { other: 60 } },
+}), today());
+await e2eB.waitForTimeout(2000);
+const psForced = await e2eB.evaluate(() => ({
+  d: getComputedStyle(document.documentElement).getPropertyValue('--d').trim(),
+  overlay: !!(document.getElementById('db-overlay') && document.getElementById('db-overlay').isConnected),
+}));
+ok('per-site limit overrides the global budget', psForced.d === '1' && psForced.overlay, JSON.stringify(psForced));
+
+await sw.evaluate((dk) => chrome.storage.local.set({
+  settings: { sites: { other: true }, timeLimit: { enabled: true, minutes: 720, perSite: { other: 720 } }, healSpeed: 1, effects: { blur: true, cracks: true, glitch: true, shake: true, kill: true } },
+  usage: { date: dk, seconds: { other: 60 } },
+  damage: { all: { d: 0.1, t: Date.now() } },
+}), today());
+await e2eB.waitForTimeout(2000);
+const psFree = await e2eB.evaluate(() =>
+  getComputedStyle(document.documentElement).getPropertyValue('--d').trim()
+);
+ok('per-site limit respects its own budget', psFree !== '1', `d=${psFree}`);
+
+// reset settings for the popup test
+await sw.evaluate(() => chrome.storage.local.set({
+  settings: { sites: { other: true }, sensitivity: 1, timeLimit: { enabled: false, minutes: 60, perSite: {} }, effects: { blur: true, cracks: true, glitch: true, shake: true, kill: true }, healSpeed: 1 },
+  damage: { all: { d: 0.1, t: Date.now() } },
+}));
+await e2eB.waitForTimeout(1200);
 
 // ---- popup binds and saves -------------------------------------------------
 const popup = await ctx.newPage();
@@ -215,8 +261,12 @@ const popupState = await popup.evaluate(() => ({
   hasTimeMinutes: !!document.getElementById('time-minutes'),
   hasEffKill: !!document.getElementById('eff-kill'),
   hasEffCracks: !!document.getElementById('eff-cracks'),
+  hasPresets: !!document.getElementById('preset-brutal'),
+  hasHealSpeed: !!document.getElementById('heal-speed'),
+  hasPerSite: !!document.getElementById('tl-other'),
+  hasReset: !!document.getElementById('btn-reset'),
 }));
-ok('popup renders all toggles', popupState.hasOther && popupState.hasSlider && popupState.hasTimeEnabled && popupState.hasTimeMinutes && popupState.hasEffKill && popupState.hasEffCracks, JSON.stringify(popupState));
+ok('popup renders all toggles', popupState.hasOther && popupState.hasSlider && popupState.hasTimeEnabled && popupState.hasTimeMinutes && popupState.hasEffKill && popupState.hasEffCracks && popupState.hasPresets && popupState.hasHealSpeed && popupState.hasPerSite && popupState.hasReset, JSON.stringify(popupState));
 // Toggle through the real input event (switches hide the checkbox visually,
 // so drive the element directly rather than Playwright's actionability check).
 await popup.evaluate(() => {
@@ -233,6 +283,29 @@ await popup.evaluate(() => {
   el.dispatchEvent(new Event('change'));
 });
 await popup.waitForTimeout(400);
+
+// presets apply sensitivity + effects + heal speed
+await popup.evaluate(() => document.getElementById('preset-brutal').click());
+await popup.waitForTimeout(600);
+const preset = await sw.evaluate(async () => {
+  const s = (await chrome.storage.local.get('settings')).settings;
+  return { sens: s.sensitivity, kill: s.effects.kill, heal: s.healSpeed };
+});
+ok('preset brutal applies', preset.sens === 2 && preset.kill === true && preset.heal === 0.5, JSON.stringify(preset));
+await popup.evaluate(() => document.getElementById('preset-gentle').click());
+await popup.waitForTimeout(600);
+const presetG = await sw.evaluate(async () => {
+  const s = (await chrome.storage.local.get('settings')).settings;
+  return { sens: s.sensitivity, kill: s.effects.kill, heal: s.healSpeed };
+});
+ok('preset gentle applies', presetG.sens === 0.5 && presetG.kill === false && presetG.heal === 1.5, JSON.stringify(presetG));
+
+// reset damage zeroes the shared meter
+await sw.evaluate(() => chrome.storage.local.set({ damage: { all: { d: 0.5, t: Date.now() } } }));
+await popup.evaluate(() => document.getElementById('btn-reset').click());
+await popup.waitForTimeout(600);
+const resetD = await sw.evaluate(async () => (await chrome.storage.local.get('damage')).damage.all.d);
+ok('reset damage zeroes the meter', resetD === 0, `d=${resetD}`);
 
 await ctx.close();
 const fails = results.filter((r) => !r.pass).length;

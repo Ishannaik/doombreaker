@@ -27,11 +27,12 @@ const DBMeter = {
     return s;
   },
 
-  tick(s, now) {
+  tick(s, now, healMult) {
     if (s.lastTick === undefined) s.lastTick = now;
     if (now - s.last >= this.CFG.IDLE_MS) {
       const elapsedSec = (now - s.lastTick) / 1000;
-      s.d = this.clamp(s.d - this.CFG.HEAL_PER_SEC * elapsedSec);
+      const mult = (typeof healMult === 'number' && healMult > 0) ? healMult : 1;
+      s.d = this.clamp(s.d - this.CFG.HEAL_PER_SEC * mult * elapsedSec);
     }
     s.lastTick = now;
     return s;

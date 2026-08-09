@@ -36,8 +36,9 @@
     let settings = {
       sites: { x: true, reddit: true, instagram: true, youtube: true, linkedin: true, other: true },
       sensitivity: 1,
-      timeLimit: { enabled: false, minutes: 60 },
+      timeLimit: { enabled: false, minutes: 60, perSite: {} },
       effects: { blur: true, cracks: true, glitch: true, shake: true, kill: true },
+      healSpeed: 1,
     };
     let enabled = true;           // settings.sites[site.key]
     let active = false;           // site.active(pathname)
@@ -60,12 +61,13 @@
     let storageLoaded = false;    // block flushes until the initial get() resolves,
                                   // so we never write a damageCache missing other sites
 
-    // Daily time budget (opt-in): usage.seconds counts active scrolling time
-    // across all sites; when it passes timeLimit.minutes * 60 the page pins at
-    // full break + feed-kill until the local date rolls over.
-    let usage = { date: DBMeter.dateKey(), seconds: 0 };
+    // Daily time budget (opt-in): per-site active seconds are accumulated by
+    // the service worker (single writer) via db-usage messages; this tab only
+    // reports its own delta. usageStored mirrors storage for enforcement.
+    let usageStored = { date: DBMeter.dateKey(), seconds: {} };
+    let localSec = 0;             // this tab's active seconds
+    let sentSec = 0;              // localSec already reported to the SW
     let usageFlushAt = 0;
-    let lastUsageWritten = 0;     // local seconds already merged into storage
     let lastInputAt = 0;          // ts of last scrolling/video input
 
     // ---- Settings ---------------------------------------------------------
@@ -75,9 +77,14 @@
         sites: Object.assign({}, settings.sites, s.sites || {}),
         sensitivity: (typeof s.sensitivity === 'number') ? s.sensitivity : settings.sensitivity,
         timeLimit: (s.timeLimit && typeof s.timeLimit === 'object')
-          ? { enabled: !!s.timeLimit.enabled, minutes: Number(s.timeLimit.minutes) || 60 }
+          ? {
+              enabled: !!s.timeLimit.enabled,
+              minutes: Number(s.timeLimit.minutes) || 60,
+              perSite: Object.assign({}, (s.timeLimit.perSite || {})),
+            }
           : settings.timeLimit,
         effects: Object.assign({ blur: true, cracks: true, glitch: true, shake: true, kill: true }, (s.effects || {})),
+        healSpeed: (typeof s.healSpeed === 'number' && s.healSpeed > 0) ? s.healSpeed : settings.healSpeed,
       };
       enabled = settings.sites[site.key] !== false;
     }
@@ -344,10 +351,9 @@
             if (res.settings) applySettings(res.settings);
             if (res[DBSites.CONFIG_KEY]) applyConfig(res[DBSites.CONFIG_KEY].data);
             if (res.usage && typeof res.usage === 'object') {
-              usage = (res.usage.date === DBMeter.dateKey())
-                ? { date: res.usage.date, seconds: Number(res.usage.seconds) || 0 }
-                : { date: DBMeter.dateKey(), seconds: 0 };
-              lastUsageWritten = usage.seconds;
+              usageStored = (res.usage.date === DBMeter.dateKey() && res.usage.seconds && typeof res.usage.seconds === 'object')
+                ? { date: res.usage.date, seconds: res.usage.seconds }
+                : { date: DBMeter.dateKey(), seconds: {} };
             }
             damageCache = (res.damage && typeof res.damage === 'object') ? res.damage : {};
             const entry = damageCache[DMG_KEY];
@@ -379,10 +385,9 @@
             }
             if (changes.usage && changes.usage.newValue && typeof changes.usage.newValue === 'object') {
               const nv = changes.usage.newValue;
-              usage = (nv.date === DBMeter.dateKey())
-                ? { date: nv.date, seconds: Number(nv.seconds) || 0 }
-                : { date: DBMeter.dateKey(), seconds: 0 };
-              lastUsageWritten = usage.seconds;
+              usageStored = (nv.date === DBMeter.dateKey() && nv.seconds && typeof nv.seconds === 'object')
+                ? { date: nv.date, seconds: nv.seconds }
+                : { date: DBMeter.dateKey(), seconds: {} };
             }
             if (changes.damage && changes.damage.newValue) {
               damageCache = changes.damage.newValue;
@@ -410,33 +415,32 @@
       } catch (e) { /* ignore */ }
     }
 
-    // Daily time budget storage: merge this tab's accumulated seconds into the
-    // shared counter (read-modify-write; two tabs writing at once can undercount
-    // by one flush interval, accepted for MVP).
-    function flushUsage(now) {
-      const dk = DBMeter.dateKey();
-      if (usage.date !== dk) { usage = { date: dk, seconds: 0 }; lastUsageWritten = 0; }
-      const delta = Math.max(0, usage.seconds - lastUsageWritten);
+    // Report this tab's newly accumulated active seconds to the service worker.
+    // The SW is the single writer for usage, so tabs cannot lose each other's
+    // time (read-modify-write races moved out of content entirely).
+    function sendUsage(now) {
+      const delta = localSec - sentSec;
       if (delta <= 0) return;
-      lastUsageWritten = usage.seconds;
+      sentSec = localSec;
       try {
-        cr.storage.local.get('usage', (res) => {
-          try {
-            const prev = (res && res.usage && res.usage.date === dk) ? (Number(res.usage.seconds) || 0) : 0;
-            const merged = Math.min(prev + delta, 24 * 3600);
-            usage.seconds = merged;
-            lastUsageWritten = merged;
-            cr.storage.local.set({ usage: { date: dk, seconds: merged } });
-          } catch (err) { /* ignore */ }
-        });
+        if (!(cr && cr.runtime && cr.runtime.sendMessage)) return;
+        const p = cr.runtime.sendMessage({ type: 'db-usage', site: site.key, delta: Math.round(delta * 100) / 100 });
+        if (p && typeof p.catch === 'function') p.catch(() => { /* ignore */ });
       } catch (e) { /* ignore */ }
     }
 
     function overTimeBudget() {
       if (!settings.timeLimit.enabled) return false;
       const dk = DBMeter.dateKey();
-      if (usage.date !== dk) { usage = { date: dk, seconds: 0 }; lastUsageWritten = 0; }
-      return usage.seconds >= settings.timeLimit.minutes * 60;
+      if (usageStored.date !== dk) { usageStored = { date: dk, seconds: {} }; }
+      const tl = settings.timeLimit;
+      // A per-site override replaces the global budget for that site.
+      const siteLimit = (tl.perSite && typeof tl.perSite[site.key] === 'number' && tl.perSite[site.key] > 0)
+        ? tl.perSite[site.key] : null;
+      const secs = siteLimit
+        ? (usageStored.seconds[site.key] || 0)
+        : Object.values(usageStored.seconds).reduce((a, b) => a + (Number(b) || 0), 0);
+      return secs >= (siteLimit || tl.minutes) * 60;
     }
 
     // ---- Main loop (all DOM writes happen here) ----------------------------
@@ -449,16 +453,16 @@
           lastHref = location.href;
           onNav();
         }
-        DBMeter.tick(state, now);
+        DBMeter.tick(state, now, settings.healSpeed);
         // Active-time accounting: counts while we're scrolling or in video
         // mode with input within the last 10s. Pausing to read still counts
         // briefly; stopping entirely stops the clock.
         if (enabled && active && now - lastInputAt < 10000) {
-          usage.seconds += 0.25;
+          localSec += 0.25;
         }
         if (storageLoaded && now - usageFlushAt >= 5000) {
           usageFlushAt = now;
-          flushUsage(now);
+          sendUsage(now);
         }
         const forced = overTimeBudget();
         const effD = forced ? 1 : state.d;

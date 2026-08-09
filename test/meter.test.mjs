@@ -109,6 +109,22 @@ let t = 1_000_000; // arbitrary base timestamp (ms)
   assert.equal(s.d, 0, 'heal: stays at 0');
 }
 
+// --- heal speed multiplier ---
+{
+  const s = DBMeter.create(t);
+  DBMeter.addWheel(s, 20000, t, 1); // d = 0.5
+  DBMeter.tick(s, t + IDLE_MS, 2);  // 2x heal
+  approx(s.d, 0.5 - HEAL_PER_SEC * 2 * (IDLE_MS / 1000), 'tick: healMult 2 doubles heal rate');
+  const s2 = DBMeter.create(t);
+  DBMeter.addWheel(s2, 20000, t, 1);
+  DBMeter.tick(s2, t + IDLE_MS, 0.5); // 0.5x heal
+  approx(s2.d, 0.5 - HEAL_PER_SEC * 0.5 * (IDLE_MS / 1000), 'tick: healMult 0.5 halves heal rate');
+  const s3 = DBMeter.create(t);
+  DBMeter.addWheel(s3, 20000, t, 1);
+  DBMeter.tick(s3, t + IDLE_MS, 0); // invalid mult falls back to 1
+  approx(s3.d, 0.5 - HEAL_PER_SEC * (IDLE_MS / 1000), 'tick: invalid healMult falls back to 1');
+}
+
 // --- dateKey ---
 {
   assert.equal(DBMeter.dateKey(new Date(2026, 7, 9)), '2026-08-09', 'dateKey: zero-pads month/day');

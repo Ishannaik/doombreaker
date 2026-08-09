@@ -8,7 +8,7 @@
 // any fetch failure. Site updates = edit config/sites.json in the repo = all
 // installed copies pick it up within the refresh window, no store release.
 
-importScripts('sites.js');
+importScripts('meter.js', 'sites.js');
 
 const RULE_IDS = [101, 102, 103, 104, 105, 106];
 const GENERIC_BASE = 200;
@@ -129,7 +129,30 @@ chrome.alarms.create(CONFIG_ALARM, { periodInMinutes: DBSites.REFRESH_MINUTES })
 
 // ---- Feed-kill ------------------------------------------------------------
 
+// ---- Usage accumulator (single writer) ------------------------------------
+// Content tabs never write usage directly: each sends {site, delta} and the
+// SW merges into storage, so two tabs writing at once cannot lose seconds.
+function recordUsage(msg) {
+  return chrome.storage.local.get('usage').then(function (res) {
+    const today = DBMeter.dateKey();
+    const prev = (res.usage && res.usage.date === today && typeof res.usage.seconds === 'object')
+      ? res.usage.seconds : {};
+    const key = msg.site || 'other';
+    prev[key] = Math.min(24 * 3600, (prev[key] || 0) + (Number(msg.delta) || 0));
+    return chrome.storage.local.set({ usage: { date: today, seconds: prev } });
+  });
+}
+
 chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
+  if (msg && msg.type === 'db-usage') {
+    recordUsage(msg)
+      .then(function () { sendResponse({ ok: true }); })
+      .catch(function (e) {
+        console.error('DoomBreaker usage failed:', e);
+        sendResponse({ ok: false, error: String(e) });
+      });
+    return true; // async sendResponse
+  }
   if (!msg || msg.type !== 'db-feedkill') return;
   loadConfigFromStorage()
     .then(function (cfg) {

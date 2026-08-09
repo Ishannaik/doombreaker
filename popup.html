@@ -150,6 +150,69 @@
     color: var(--muted);
     text-transform: uppercase;
   }
+  .per-site { margin-top: 6px; }
+  .per-site .mins-label { display: block; margin-bottom: 5px; }
+  .ps-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 8px; }
+  .ps-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font: 10px/1 var(--mono);
+    color: var(--muted);
+  }
+  .ps-row input {
+    width: 52px;
+    background: #0e0e14;
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    padding: 3px 4px;
+    font: 11px var(--mono);
+    text-align: center;
+  }
+  .ps-row input:focus { border-color: var(--accent); outline: none; }
+  .presets { display: flex; gap: 6px; }
+  .preset {
+    flex: 1;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    color: var(--text);
+    border-radius: 7px;
+    padding: 6px 0;
+    font: 11px var(--mono);
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .preset:hover { border-color: var(--accent); background: var(--panel-hover); }
+  .heal-head { margin-top: 12px; }
+  .heal-select {
+    background: #0e0e14;
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    font: 11px var(--mono);
+    padding: 3px 4px;
+  }
+  .reset {
+    width: 100%;
+    margin-bottom: 8px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    color: var(--muted);
+    border-radius: 7px;
+    padding: 5px 0;
+    font: 10px var(--mono);
+    letter-spacing: 0.12em;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .reset:hover { color: #fff; border-color: var(--accent); }
+  .foot-note {
+    font: 9px/1 var(--mono);
+    letter-spacing: 0.08em;
+    color: #6d6d7c;
+  }
   input[type="number"] {
     width: 58px;
     background: #0e0e14;
@@ -243,6 +306,17 @@
       <span class="mins-label">Minutes / day</span>
       <input type="number" id="time-minutes" min="15" max="720" step="15" value="60">
     </div>
+    <div class="per-site">
+      <span class="mins-label">Per-site minutes (blank = global)</span>
+      <div class="ps-grid">
+        <label class="ps-row"><span>X</span><input type="number" id="tl-x" min="0" max="720" step="15" placeholder="—"></label>
+        <label class="ps-row"><span>Reddit</span><input type="number" id="tl-reddit" min="0" max="720" step="15" placeholder="—"></label>
+        <label class="ps-row"><span>Insta</span><input type="number" id="tl-instagram" min="0" max="720" step="15" placeholder="—"></label>
+        <label class="ps-row"><span>YT</span><input type="number" id="tl-youtube" min="0" max="720" step="15" placeholder="—"></label>
+        <label class="ps-row"><span>LinkedIn</span><input type="number" id="tl-linkedin" min="0" max="720" step="15" placeholder="—"></label>
+        <label class="ps-row"><span>Other</span><input type="number" id="tl-other" min="0" max="720" step="15" placeholder="—"></label>
+      </div>
+    </div>
   </section>
 
   <section class="group">
@@ -255,6 +329,15 @@
   </section>
 
   <section class="group">
+    <h2 class="group-title">Presets</h2>
+    <div class="presets">
+      <button type="button" id="preset-gentle" class="preset">Gentle</button>
+      <button type="button" id="preset-normal" class="preset">Normal</button>
+      <button type="button" id="preset-brutal" class="preset">Brutal</button>
+    </div>
+  </section>
+
+  <section class="group">
     <div class="sens-head">
       <label for="sensitivity">Brutality</label>
       <span id="sens-val" class="badge" aria-live="polite">1</span>
@@ -262,9 +345,21 @@
     <input type="range" id="sensitivity" min="0.5" max="2" step="0.25" value="1"
            aria-valuemin="0.5" aria-valuemax="2">
     <div class="sens-scale"><span>gentle</span><span>brutal</span></div>
+    <div class="sens-head heal-head">
+      <label for="heal-speed">Heal speed</label>
+      <select id="heal-speed" class="heal-select">
+        <option value="0.5">Slow</option>
+        <option value="1" selected>Normal</option>
+        <option value="1.5">Faster</option>
+        <option value="2">Fastest</option>
+      </select>
+    </div>
   </section>
 
-  <footer class="foot">damage heals when you stop</footer>
+  <footer class="foot">
+    <button type="button" id="btn-reset" class="reset">RESET DAMAGE</button>
+    <div class="foot-note">damage heals when you stop</div>
+  </footer>
   <script src="popup.js"></script>
 </body>
 </html>

@@ -25,7 +25,7 @@ One shared damage meter `d` (0→1), fed by wheel distance (or videos advanced),
 
 Per-site rules (host regex, active/video path prefixes, kill filters) live in the remote `config/sites.json` in this repo, not in the code. The service worker fetches it on install/startup and every 6h, caches it in storage, and falls back to the bundled copy when offline — the same remote-asset pattern uBlock Origin uses for its filter lists. When a site changes its URLs or API paths, edit `config/sites.json` and every installed copy picks it up within the refresh window; no store release needed.
 
-Optional daily time limit (off by default): set minutes per day in the popup. Active scrolling time is counted across all sites; when the budget runs out the page pins at full break with the feed-kill until the local day rolls over. Every effect can be toggled individually in the popup (blur, cracks, glitch, shake, network block), all on by default.
+Optional daily time limit (off by default): set minutes per day in the popup, plus optional per-site overrides (blank = use the global budget). Active scrolling time is counted per site by the service worker — the single writer, so multi-tab usage cannot lose time. When the budget runs out the page pins at full break with the feed-kill until the local day rolls over. Every effect can be toggled individually in the popup (blur, cracks, glitch, shake, network block), all on by default, plus one-click presets (Gentle / Normal / Brutal), a heal-speed selector, and a reset-damage button.
 
 `prefers-reduced-motion` disables shake/glitch. Damage syncs across tabs via `chrome.storage.local`. Permissions: `storage`, `declarativeNetRequest`, `alarms`.
 

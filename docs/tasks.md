@@ -1,11 +1,11 @@
 # DoomBreaker tasks
 
-Open asks, tracked in the repo so they survive sessions. Check items off when
+Open tasks, tracked in the repo so they survive sessions. Check items off when
 done; add new ones at the top.
 
+- [x] Multi-tab time-limit accuracy — usage counter now lives in the service worker as the single writer (0.3.0)
+- [x] Per-site time limits — per-site overrides over the global budget, blank = global (0.3.0)
+- [x] Popup effect presets — Gentle / Normal / Brutal (0.3.0)
+- [x] Heal-speed option — Slow / Normal / Faster / Fastest (0.3.0)
+- [x] Reset-damage button (0.3.0)
 - [ ] Chrome Web Store upload — needs Ishan's dev account login; kit ready in `store/`
-- [ ] Multi-tab time-limit accuracy: move the usage counter into the service worker as the single writer (current read-modify-write can undercount by one 5s flush when two tabs write at once)
-- [ ] Per-site time limits (current limit is global across all sites)
-- [ ] Effect presets in the popup (gentle / normal / brutal)
-- [ ] Heal-speed option in the popup
-- [ ] Reset-damage button in the popup
