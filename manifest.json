@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "DoomBreaker",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "The page breaks as you doom-scroll. Damage heals when you stop.",
   "permissions": ["storage", "declarativeNetRequest", "alarms"],
   "background": {
