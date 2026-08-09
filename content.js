@@ -37,6 +37,7 @@
       sites: { x: true, reddit: true, instagram: true, youtube: true, linkedin: true, other: true },
       sensitivity: 1,
       timeLimit: { enabled: false, minutes: 60 },
+      effects: { blur: true, cracks: true, glitch: true, shake: true, kill: true },
     };
     let enabled = true;           // settings.sites[site.key]
     let active = false;           // site.active(pathname)
@@ -76,6 +77,7 @@
         timeLimit: (s.timeLimit && typeof s.timeLimit === 'object')
           ? { enabled: !!s.timeLimit.enabled, minutes: Number(s.timeLimit.minutes) || 60 }
           : settings.timeLimit,
+        effects: Object.assign({ blur: true, cracks: true, glitch: true, shake: true, kill: true }, (s.effects || {})),
       };
       enabled = settings.sites[site.key] !== false;
     }
@@ -302,13 +304,17 @@
     function applyVisuals(d) {
       const de = document.documentElement;
       if (!de) return;
+      const ef = settings.effects;
       const show = enabled && active;
       if (show) {
         de.style.setProperty('--d', String(d));
-        setClass(de, 'db-blur', d >= 0.30);
-        setClass(de, 'db-glitch', d >= 0.60);
-        setClass(de, 'db-shake', d >= 0.90);
-        if (ensureOverlay()) crackTick(d);
+        setClass(de, 'db-blur', ef.blur && d >= 0.30);
+        setClass(de, 'db-glitch', ef.glitch && d >= 0.60);
+        setClass(de, 'db-shake', ef.shake && d >= 0.90);
+        if (ensureOverlay()) {
+          if (ef.cracks) crackTick(d);
+          else if (cracksSvg && cracksSvg.firstChild) clearCracks();
+        }
       } else {
         de.style.removeProperty('--d');
         de.classList.remove('db-blur', 'db-glitch', 'db-shake');
@@ -456,13 +462,15 @@
         }
         const forced = overTimeBudget();
         const effD = forced ? 1 : state.d;
+        const ef = settings.effects;
         applyVisuals(effD);
-        if (forced) {
+        if (forced || (ef.kill && state.d >= 0.995 && !killOn)) {
           if (!killOn) { killOn = true; sendFeedKill(true); }
-        } else if (state.d >= 0.995 && !killOn) {
-          killOn = true;
-          sendFeedKill(true);
         } else if (state.d < 0.85 && killOn) {
+          killOn = false;
+          sendFeedKill(false);
+        } else if (!ef.kill && killOn) {
+          // Network block turned off while active: release any rules.
           killOn = false;
           sendFeedKill(false);
         }

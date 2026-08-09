@@ -28,6 +28,7 @@ Features:
 - Per-site toggles in the toolbar popup (X/Twitter, Reddit, Instagram, YouTube Shorts, LinkedIn, and every other site)
 - Sensitivity slider: 0.5 gentle → 2 brutal
 - Optional daily time limit: set your minutes per day, the page stays broken when the budget runs out (off by default)
+- Per-effect toggles: turn blur, cracks, glitch, shake, or the network block on and off individually
 - Shorts/Reels count ~3x faster than scrolling
 - One shared damage meter across all sites — hopping from X to Reddit doesn't reset your damage
 - Damage heals slowly when you stop scrolling (~1 hour for a full heal)

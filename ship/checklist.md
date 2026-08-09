@@ -22,7 +22,8 @@ Asserts: SW boots · config fetched · real-site injection · wheel→damage ·
 feed-kill DNR rule added at d=1 and removed on heal · damage syncs across
 tabs · per-site toggle disables the generic fallback · daily time limit counts
 active scrolling, pins full break when the budget is exhausted, and releases
-after reset · popup renders and persists toggles.
+after reset · effect toggles disable cracks and the network block · popup
+renders and persists toggles.
 
 ## Layer 3 — demo capture (every ship, ~30s)
 ```bash

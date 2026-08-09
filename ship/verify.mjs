@@ -177,6 +177,32 @@ await sw.evaluate(() => chrome.storage.local.set({
   settings: { sites: { other: true }, sensitivity: 1, timeLimit: { enabled: false, minutes: 60 } },
 }));
 
+// ---- effect toggles: cracks off + network block off ------------------------
+await sw.evaluate(() => chrome.storage.local.set({
+  settings: {
+    sites: { other: true }, sensitivity: 1, timeLimit: { enabled: false, minutes: 60 },
+    effects: { blur: true, cracks: false, glitch: true, shake: true, kill: false },
+  },
+}));
+await e2eB.waitForTimeout(1500);
+await wheel(e2eB, 25, 2000); // d -> 1 (well past every threshold)
+await e2eB.waitForTimeout(2500); // clearCracks fade + loop settle
+const effOff = await e2eB.evaluate(() => ({
+  overlay: !!(document.getElementById('db-overlay') && document.getElementById('db-overlay').isConnected),
+  crackPaths: document.querySelectorAll('#db-cracks path').length,
+  d: getComputedStyle(document.documentElement).getPropertyValue('--d').trim(),
+}));
+const effRules = await sw.evaluate(async () => (await chrome.declarativeNetRequest.getDynamicRules()).length);
+ok('cracks toggle disables cracks', effOff.overlay && effOff.crackPaths === 0, JSON.stringify(effOff));
+ok('network-block toggle disables feed-kill', effRules === 0, `rules=${effRules}`);
+
+// restore everything and drop damage for the popup test
+await sw.evaluate(() => chrome.storage.local.set({
+  settings: { sites: { other: true }, sensitivity: 1, timeLimit: { enabled: false, minutes: 60 }, effects: { blur: true, cracks: true, glitch: true, shake: true, kill: true } },
+  damage: { all: { d: 0.1, t: Date.now() } },
+}));
+await e2eB.waitForTimeout(1500);
+
 // ---- popup binds and saves -------------------------------------------------
 const popup = await ctx.newPage();
 await popup.goto(`chrome-extension://${extId}/popup.html`, { waitUntil: 'load' });
@@ -187,8 +213,10 @@ const popupState = await popup.evaluate(() => ({
   hasSlider: !!document.getElementById('sensitivity'),
   hasTimeEnabled: !!document.getElementById('time-enabled'),
   hasTimeMinutes: !!document.getElementById('time-minutes'),
+  hasEffKill: !!document.getElementById('eff-kill'),
+  hasEffCracks: !!document.getElementById('eff-cracks'),
 }));
-ok('popup renders all toggles', popupState.hasOther && popupState.hasSlider && popupState.hasTimeEnabled && popupState.hasTimeMinutes, JSON.stringify(popupState));
+ok('popup renders all toggles', popupState.hasOther && popupState.hasSlider && popupState.hasTimeEnabled && popupState.hasTimeMinutes && popupState.hasEffKill && popupState.hasEffCracks, JSON.stringify(popupState));
 // Toggle through the real input event (switches hide the checkbox visually,
 // so drive the element directly rather than Playwright's actionability check).
 await popup.evaluate(() => {

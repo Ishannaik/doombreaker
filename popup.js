@@ -1,12 +1,14 @@
-// DoomBreaker popup — binds site checkboxes, daily time limit, and the
-// sensitivity slider to storage 'settings'.
+// DoomBreaker popup — binds site checkboxes, daily time limit, per-effect
+// toggles, and the sensitivity slider to storage 'settings'.
 
 const SITE_KEYS = ['x', 'reddit', 'instagram', 'youtube', 'linkedin', 'other'];
+const EFFECT_KEYS = ['blur', 'cracks', 'glitch', 'shake', 'kill'];
 
 const DEFAULTS = {
   sites: { x: true, reddit: true, instagram: true, youtube: true, linkedin: true, other: true },
   sensitivity: 1,
-  timeLimit: { enabled: false, minutes: 60 }
+  timeLimit: { enabled: false, minutes: 60 },
+  effects: { blur: true, cracks: true, glitch: true, shake: true, kill: true }
 };
 
 const slider = document.getElementById('sensitivity');
@@ -19,13 +21,18 @@ function currentSettings() {
   for (const k of SITE_KEYS) {
     sites[k] = document.getElementById('site-' + k).checked;
   }
+  const effects = {};
+  for (const k of EFFECT_KEYS) {
+    effects[k] = document.getElementById('eff-' + k).checked;
+  }
   return {
     sites: sites,
     sensitivity: Number(slider.value),
     timeLimit: {
       enabled: timeEnabled.checked,
       minutes: Math.max(15, Math.min(720, Math.round(Number(timeMinutes.value) || 60)))
-    }
+    },
+    effects: effects
   };
 }
 
@@ -40,6 +47,10 @@ chrome.storage.local.get('settings').then(function (res) {
   for (const k of SITE_KEYS) {
     document.getElementById('site-' + k).checked = sites[k] !== false;
   }
+  const effects = s.effects || DEFAULTS.effects;
+  for (const k of EFFECT_KEYS) {
+    document.getElementById('eff-' + k).checked = effects[k] !== false;
+  }
   const tl = s.timeLimit || DEFAULTS.timeLimit;
   timeEnabled.checked = !!tl.enabled;
   timeMinutes.value = (typeof tl.minutes === 'number' && tl.minutes > 0) ? tl.minutes : 60;
@@ -49,6 +60,9 @@ chrome.storage.local.get('settings').then(function (res) {
 
 for (const k of SITE_KEYS) {
   document.getElementById('site-' + k).addEventListener('change', save);
+}
+for (const k of EFFECT_KEYS) {
+  document.getElementById('eff-' + k).addEventListener('change', save);
 }
 timeEnabled.addEventListener('change', save);
 timeMinutes.addEventListener('change', save);
