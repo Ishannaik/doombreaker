@@ -409,6 +409,15 @@
         set(d) { state.d = clamp01(d); },
         state,
       };
+      // Cross-world bridge: the harness page (page world) dispatches db:set
+      // with a damage value; this isolated copy (which owns the real
+      // chrome/storage/messaging) applies it. DOM events flow between worlds,
+      // JS globals do not.
+      window.addEventListener('db:set', (e) => {
+        try {
+          if (typeof e.detail === 'number') state.d = clamp01(e.detail);
+        } catch (err) { /* ignore */ }
+      });
     }
   } catch (e) { /* never break the host page */ }
 })();

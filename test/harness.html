@@ -75,31 +75,11 @@
 <div id="feed"></div>
 
 <script>
-  // ---- chrome stub (must exist before meter.js / content.js load) ----
-  window.chrome = {
-    storage: {
-      local: {
-        get: function (keys, cb) {
-          var result = {};
-          if (typeof cb === 'function') cb(result);
-          return Promise.resolve(result);
-        },
-        set: function (items, cb) {
-          if (typeof cb === 'function') cb();
-          return Promise.resolve();
-        }
-      },
-      onChanged: {
-        addListener: function () {}
-      }
-    },
-    runtime: {
-      sendMessage: function (msg) {
-        console.log('[harness] runtime.sendMessage', msg);
-        return Promise.resolve();
-      }
-    }
-  };
+  // The extension injects content.js into its own isolated world on this
+  // page (localhost matches <all_urls>). The page world cannot touch that
+  // world's globals, so damage is driven through a cross-world DOM event:
+  // the isolated copy listens for 'db:set' and applies the value with its
+  // real chrome/storage/messaging. Load the unpacked extension first.
 
   // ---- fake feed: ~30 posts, varied heights ----
   (function () {
@@ -118,29 +98,17 @@
       feed.appendChild(post);
     }
   })();
-</script>
 
-<script src="../meter.js"></script>
-<script src="../sites.js"></script>
-<script src="../content.js"></script>
-
-<script>
-  // ---- controls (content.js exposes window.__db.set(d) on file://) ----
+  // ---- controls: dispatch db:set; the isolated content copy does the rest ----
   (function () {
     function setD(d) {
-      if (window.__db && typeof window.__db.set === 'function') {
-        window.__db.set(d);
-      } else {
-        console.warn('[harness] window.__db.set not available — is content.js loaded on file://?');
-      }
+      window.dispatchEvent(new CustomEvent('db:set', { detail: d }));
     }
-
     document.querySelectorAll('#controls button[data-d]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         setD(parseFloat(btn.dataset.d));
       });
     });
-
     document.getElementById('btn-wheel').addEventListener('click', function () {
       for (var i = 0; i < 50; i++) {
         document.body.dispatchEvent(new WheelEvent('wheel', {
@@ -150,7 +118,6 @@
           cancelable: true
         }));
       }
-      console.log('[harness] dispatched 50 wheel events (6000px total)');
     });
   })();
 </script>
