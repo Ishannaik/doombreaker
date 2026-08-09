@@ -139,6 +139,23 @@
     }, { passive: true, capture: true });
 
     // ---- Overlay + cracks -------------------------------------------------
+    // Deterministic crack set: a seeded PRNG builds the geometry once per page
+    // session; damage thresholds only reveal it. SVG paths draw themselves in
+    // via stroke-dashoffset transitions, so there is no per-frame random
+    // spawning (pattern copied from kossik/cracked-glass: geometry is a pure
+    // function of a seed, no clock, no Math.random at render time).
+    function mulberry32(seed) {
+      return function () {
+        seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+        let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+
+    let crackNodes = []; // [{threshold, back, line, revealed}]
+    let cracksBuilt = false;
+
     function ensureOverlay() {
       if (overlay && overlay.isConnected) return true;
       if (!document.documentElement || !document.body) return false;
@@ -159,44 +176,90 @@
       return true;
     }
 
-    function spawnCrack(x, y) {
-      if (!cracksSvg) return;
-      const lines = 5 + Math.floor(Math.random() * 4); // 5..8
-      for (let i = 0; i < lines; i++) {
-        const segs = 4 + Math.floor(Math.random() * 4); // 4..7
-        // Radiate around the impact point with random angular spread.
-        let ang = (i / lines) * Math.PI * 2 + (Math.random() - 0.5) * 1.5;
-        let px = x, py = y;
-        const pts = [Math.round(px) + ',' + Math.round(py)];
-        for (let j = 0; j < segs; j++) {
-          ang += (Math.random() - 0.5) * 1.2; // per-segment jitter
-          const len = 25 + Math.random() * 55;
-          px += Math.cos(ang) * len;
-          py += Math.sin(ang) * len;
-          pts.push(Math.round(px) + ',' + Math.round(py));
+    function buildCracks() {
+      if (cracksBuilt || !cracksSvg) return;
+      cracksBuilt = true;
+      const rnd = mulberry32((Date.now() >>> 0) ^ Math.imul(window.innerWidth | 0, 2654435761));
+      const raw = [];
+      const impacts = 3;
+      for (let i = 0; i < impacts; i++) {
+        const x = rnd() * window.innerWidth;
+        const y = window.innerHeight * (0.25 + rnd() * 0.5);
+        const rays = 4 + Math.floor(rnd() * 3); // 4..6 per impact
+        for (let r = 0; r < rays; r++) {
+          let ang = (r / rays) * Math.PI * 2 + (rnd() - 0.5) * 1.5;
+          let px = x, py = y;
+          const pts = [[px, py]];
+          const segs = 3 + Math.floor(rnd() * 3); // 3..5
+          for (let s = 0; s < segs; s++) {
+            ang += (rnd() - 0.5) * 1.2; // per-segment jitter
+            const len = 22 + rnd() * 45;
+            px += Math.cos(ang) * len;
+            py += Math.sin(ang) * len;
+            pts.push([px, py]);
+          }
+          raw.push(pts);
         }
-        const points = pts.join(' ');
-        const back = document.createElementNS(SVG_NS, 'polyline');
-        back.setAttribute('points', points);
+      }
+      // Spread cracks evenly across thresholds: first ones at 0.60, more
+      // appear at each higher threshold.
+      const total = raw.length;
+      raw.forEach((pts, i) => {
+        const t = THRESHOLDS[Math.min(THRESHOLDS.length - 1, Math.floor((i / total) * THRESHOLDS.length))];
+        const d = 'M' + pts.map(p => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' L');
+        const back = document.createElementNS(SVG_NS, 'path');
+        back.setAttribute('d', d);
         back.setAttribute('fill', 'none');
         back.setAttribute('stroke', 'rgba(255,255,255,.18)');
         back.setAttribute('stroke-width', '4');
         back.setAttribute('stroke-linecap', 'round');
-        cracksSvg.appendChild(back);
-        const line = document.createElementNS(SVG_NS, 'polyline');
-        line.setAttribute('points', points);
+        const line = document.createElementNS(SVG_NS, 'path');
+        line.setAttribute('d', d);
         line.setAttribute('fill', 'none');
         line.setAttribute('stroke', 'rgba(255,255,255,.75)');
         line.setAttribute('stroke-width', '1.5');
+        line.setAttribute('stroke-linecap', 'round');
+        // Draw-in setup: dash array = full length, offset starts at length,
+        // revealed by animating offset to 0. Hidden until its threshold fires.
+        const len = Math.max(1, back.getTotalLength());
+        for (const el of [back, line]) {
+          el.style.opacity = '0';
+          el.style.strokeDasharray = String(len);
+          el.style.strokeDashoffset = String(len);
+          el.style.transition = 'stroke-dashoffset 0.7s ease-out, opacity 0.6s ease-out';
+        }
+        cracksSvg.appendChild(back);
         cracksSvg.appendChild(line);
+        crackNodes.push({ threshold: t, back: back, line: line, revealed: false });
+      });
+    }
+
+    function revealCrack(node, idx) {
+      node.revealed = true;
+      const delay = Math.min(600, idx * 45) + 'ms';
+      for (const el of [node.back, node.line]) {
+        el.style.transitionDelay = delay;
+        el.style.opacity = '1';
+        // rAF so the browser sees the initial dashoffset before animating.
+        requestAnimationFrame(() => { el.style.strokeDashoffset = '0'; });
       }
     }
 
     function clearCracks() {
       fired.clear();
-      if (cracksSvg) {
-        while (cracksSvg.firstChild) cracksSvg.removeChild(cracksSvg.firstChild);
+      crackNodes = [];
+      if (cracksSvg && cracksSvg.firstChild) {
+        const kids = Array.from(cracksSvg.children);
+        kids.forEach(k => {
+          k.style.transition = 'opacity 0.45s ease-out';
+          k.style.opacity = '0';
+        });
+        // Don't yank nodes mid re-fire: only clear if no threshold fired since.
+        setTimeout(() => {
+          if (!fired.size) { while (cracksSvg.firstChild) cracksSvg.removeChild(cracksSvg.firstChild); }
+        }, 500);
       }
+      cracksBuilt = false; // next cycle gets a fresh, different crack set
     }
 
     function crackTick() {
@@ -204,12 +267,14 @@
         if (fired.size || (cracksSvg && cracksSvg.firstChild)) clearCracks();
         return;
       }
+      if (state.d >= THRESHOLDS[0] && !cracksBuilt) buildCracks();
       for (const t of THRESHOLDS) {
         if (state.d >= t && !fired.has(t)) {
           fired.add(t);
-          const x = Math.random() * window.innerWidth;
-          const y = window.innerHeight / 2 + (Math.random() - 0.5) * window.innerHeight * 0.4;
-          spawnCrack(x, y);
+          let idx = 0;
+          for (const node of crackNodes) {
+            if (node.threshold <= t && !node.revealed) revealCrack(node, idx++);
+          }
         }
       }
     }

@@ -20,6 +20,8 @@
     rgba(0, 0, 0, 0.95) 100%);
   /* invisible below d=0.25, fully dark near d=0.96 (CSS clamps opacity to 0..1) */
   opacity: calc((var(--d, 0) - 0.25) * 1.4);
+  /* ease the --d steps from the 250ms loop so darkness ramps, not jumps */
+  transition: opacity 0.6s linear;
 }
 
 #db-overlay #db-cracks {
@@ -39,82 +41,55 @@ html.db-blur body {
 }
 
 /* ---------- glitch (d >= 0.60) ---------- */
-/* Animating `filter` overrides the db-blur rule while the animation runs, so every
-   keyframe re-states the base blur/grayscale (d>=0.6 always implies db-blur).
-   steps(1,end) = hard cuts, no tweening. Mostly calm with three short bursts
-   per 2.5s cycle so it reads as intermittent hardware failure, not a strobe. */
+/* Clip-path slices + translate only (the codrops glitch pattern): no filter
+   or color changes, so the base blur/grayscale from html.db-blur body stays
+   applied untouched. steps(1,end) = hard cuts, no tweening. Three short bursts
+   per 2.5s cycle reads as intermittent hardware failure, not a strobe. */
 
 @keyframes db-glitch {
   0%, 100% {
-    filter: blur(calc((var(--d, 0) - 0.3) / 0.7 * 5px))
-            grayscale(calc((var(--d, 0) - 0.3) / 0.7));
     clip-path: none;
     transform: none;
   }
 
-  /* burst 1 — three cuts in ~140ms */
+  /* burst 1 — three slice cuts in ~140ms */
   7% {
-    filter: blur(calc((var(--d, 0) - 0.3) / 0.7 * 5px))
-            grayscale(calc((var(--d, 0) - 0.3) / 0.7))
-            hue-rotate(300deg) saturate(4);
     clip-path: inset(8% 0 61% 0);
-    transform: translateX(-7px);
+    transform: translateX(-6px);
   }
   9% {
-    filter: blur(calc((var(--d, 0) - 0.3) / 0.7 * 5px))
-            grayscale(calc((var(--d, 0) - 0.3) / 0.7))
-            hue-rotate(90deg) saturate(5) brightness(0.75);
     clip-path: inset(55% 0 12% 0);
-    transform: translateX(6px);
+    transform: translateX(5px);
   }
   10.5% {
-    filter: blur(calc((var(--d, 0) - 0.3) / 0.7 * 5px))
-            grayscale(calc((var(--d, 0) - 0.3) / 0.7))
-            hue-rotate(160deg) contrast(2);
     clip-path: inset(32% 0 33% 0);
-    transform: translateX(-4px);
+    transform: translateX(-3px);
   }
   12% {
-    filter: blur(calc((var(--d, 0) - 0.3) / 0.7 * 5px))
-            grayscale(calc((var(--d, 0) - 0.3) / 0.7));
     clip-path: none;
     transform: none;
   }
 
-  /* burst 2 — single hard brown-out dip (dark, never bright: no invert —
-     invert(1) on dark-theme sites flashes the whole screen white) */
+  /* burst 2 — single hard dip (dark, never bright) */
   46% {
-    filter: blur(calc((var(--d, 0) - 0.3) / 0.7 * 5px))
-            grayscale(calc((var(--d, 0) - 0.3) / 0.7))
-            brightness(0.5) contrast(1.6);
-    clip-path: none;
-    transform: translateX(3px);
+    clip-path: inset(0 0 0 0);
+    transform: translateY(3px);
   }
   47.5% {
-    filter: blur(calc((var(--d, 0) - 0.3) / 0.7 * 5px))
-            grayscale(calc((var(--d, 0) - 0.3) / 0.7));
     clip-path: none;
     transform: none;
   }
 
   /* burst 3 — slice tear, two cuts */
   78% {
-    filter: blur(calc((var(--d, 0) - 0.3) / 0.7 * 5px))
-            grayscale(calc((var(--d, 0) - 0.3) / 0.7))
-            hue-rotate(220deg) saturate(3);
     clip-path: inset(70% 0 4% 0);
-    transform: translateX(8px);
+    transform: translateX(7px);
   }
   80% {
-    filter: blur(calc((var(--d, 0) - 0.3) / 0.7 * 5px))
-            grayscale(calc((var(--d, 0) - 0.3) / 0.7))
-            hue-rotate(45deg) saturate(6) brightness(0.7);
     clip-path: inset(2% 0 78% 0);
-    transform: translateX(-5px);
+    transform: translateX(-4px);
   }
   81.5% {
-    filter: blur(calc((var(--d, 0) - 0.3) / 0.7 * 5px))
-            grayscale(calc((var(--d, 0) - 0.3) / 0.7));
     clip-path: none;
     transform: none;
   }
@@ -125,17 +100,20 @@ html.db-glitch body {
 }
 
 /* ---------- shake (d >= 0.90) ---------- */
+/* Amplitude scales with (d - 0.9): starts at a tremor, full violence only
+   near d=1, so the shake reads as damage getting worse, not a constant jolt. */
 
 @keyframes db-shake {
   0%   { transform: translate(0, 0); }
-  25%  { transform: translate(calc(var(--d, 0) * -6px), calc(var(--d, 0) * 3px)); }
-  50%  { transform: translate(calc(var(--d, 0) * 5px),  calc(var(--d, 0) * -5px)); }
-  75%  { transform: translate(calc(var(--d, 0) * -3px), calc(var(--d, 0) * -6px)); }
-  100% { transform: translate(calc(var(--d, 0) * 6px),  calc(var(--d, 0) * 4px)); }
+  20%  { transform: translate(calc((var(--d, 0) - 0.9) / 0.1 * -5px), calc((var(--d, 0) - 0.9) / 0.1 * 2px)); }
+  40%  { transform: translate(calc((var(--d, 0) - 0.9) / 0.1 * 4px),  calc((var(--d, 0) - 0.9) / 0.1 * -4px)); }
+  60%  { transform: translate(calc((var(--d, 0) - 0.9) / 0.1 * -2px), calc((var(--d, 0) - 0.9) / 0.1 * -5px)); }
+  80%  { transform: translate(calc((var(--d, 0) - 0.9) / 0.1 * 5px),  calc((var(--d, 0) - 0.9) / 0.1 * 3px)); }
+  100% { transform: translate(0, 0); }
 }
 
 html.db-shake body {
-  animation: db-shake 0.15s linear infinite;
+  animation: db-shake 0.22s linear infinite;
 }
 
 /* Both classes on (d >= 0.90): run both animations. db-shake listed last so its
