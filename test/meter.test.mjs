@@ -109,4 +109,12 @@ let t = 1_000_000; // arbitrary base timestamp (ms)
   assert.equal(s.d, 0, 'heal: stays at 0');
 }
 
+// --- dateKey ---
+{
+  assert.equal(DBMeter.dateKey(new Date(2026, 7, 9)), '2026-08-09', 'dateKey: zero-pads month/day');
+  assert.equal(DBMeter.dateKey(new Date(2026, 0, 1)), '2026-01-01', 'dateKey: January');
+  assert.equal(DBMeter.dateKey(new Date(2026, 11, 31)), '2026-12-31', 'dateKey: December');
+  assert.match(DBMeter.dateKey(), /^\d{4}-\d{2}-\d{2}$/, 'dateKey: today matches shape');
+}
+
 console.log('meter.test.mjs: all tests passed');

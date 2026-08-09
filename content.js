@@ -36,6 +36,7 @@
     let settings = {
       sites: { x: true, reddit: true, instagram: true, youtube: true, linkedin: true, other: true },
       sensitivity: 1,
+      timeLimit: { enabled: false, minutes: 60 },
     };
     let enabled = true;           // settings.sites[site.key]
     let active = false;           // site.active(pathname)
@@ -58,12 +59,23 @@
     let storageLoaded = false;    // block flushes until the initial get() resolves,
                                   // so we never write a damageCache missing other sites
 
+    // Daily time budget (opt-in): usage.seconds counts active scrolling time
+    // across all sites; when it passes timeLimit.minutes * 60 the page pins at
+    // full break + feed-kill until the local date rolls over.
+    let usage = { date: DBMeter.dateKey(), seconds: 0 };
+    let usageFlushAt = 0;
+    let lastUsageWritten = 0;     // local seconds already merged into storage
+    let lastInputAt = 0;          // ts of last scrolling/video input
+
     // ---- Settings ---------------------------------------------------------
     function applySettings(s) {
       if (!s || typeof s !== 'object') return;
       settings = {
         sites: Object.assign({}, settings.sites, s.sites || {}),
         sensitivity: (typeof s.sensitivity === 'number') ? s.sensitivity : settings.sensitivity,
+        timeLimit: (s.timeLimit && typeof s.timeLimit === 'object')
+          ? { enabled: !!s.timeLimit.enabled, minutes: Number(s.timeLimit.minutes) || 60 }
+          : settings.timeLimit,
       };
       enabled = settings.sites[site.key] !== false;
     }
@@ -102,6 +114,7 @@
         mode = DBSites.siteMode(site, p);
         if (enabled && active && mode === 'video' && p !== lastVideoPath && DBSites.isVideoPath(site, p)) {
           DBMeter.addVideo(state, Date.now(), settings.sensitivity);
+          lastInputAt = Date.now();
         }
         lastVideoPath = p;
       } catch (e) { /* ignore */ }
@@ -118,6 +131,7 @@
         else if (e.deltaMode === 2) px *= window.innerHeight;
         if (px > 0) {
           lastWheelAt = Date.now();
+          lastInputAt = lastWheelAt;
           DBMeter.addWheel(state, px, lastWheelAt, settings.sensitivity);
         }
       } catch (err) { /* ignore */ }
@@ -262,14 +276,14 @@
       cracksBuilt = false; // next cycle gets a fresh, different crack set
     }
 
-    function crackTick() {
-      if (state.d < 0.5) {
+    function crackTick(d) {
+      if (d < 0.5) {
         if (fired.size || (cracksSvg && cracksSvg.firstChild)) clearCracks();
         return;
       }
-      if (state.d >= THRESHOLDS[0] && !cracksBuilt) buildCracks();
+      if (d >= THRESHOLDS[0] && !cracksBuilt) buildCracks();
       for (const t of THRESHOLDS) {
-        if (state.d >= t && !fired.has(t)) {
+        if (d >= t && !fired.has(t)) {
           fired.add(t);
           let idx = 0;
           for (const node of crackNodes) {
@@ -285,16 +299,16 @@
       else el.classList.remove(cls);
     }
 
-    function applyVisuals() {
+    function applyVisuals(d) {
       const de = document.documentElement;
       if (!de) return;
       const show = enabled && active;
       if (show) {
-        de.style.setProperty('--d', String(state.d));
-        setClass(de, 'db-blur', state.d >= 0.30);
-        setClass(de, 'db-glitch', state.d >= 0.60);
-        setClass(de, 'db-shake', state.d >= 0.90);
-        if (ensureOverlay()) crackTick();
+        de.style.setProperty('--d', String(d));
+        setClass(de, 'db-blur', d >= 0.30);
+        setClass(de, 'db-glitch', d >= 0.60);
+        setClass(de, 'db-shake', d >= 0.90);
+        if (ensureOverlay()) crackTick(d);
       } else {
         de.style.removeProperty('--d');
         de.classList.remove('db-blur', 'db-glitch', 'db-shake');
@@ -318,11 +332,17 @@
     function loadStorage() {
       if (!(cr && cr.storage && cr.storage.local)) { storageLoaded = true; return; }
       try {
-        cr.storage.local.get(['damage', 'settings', DBSites.CONFIG_KEY], (res) => {
+        cr.storage.local.get(['damage', 'settings', DBSites.CONFIG_KEY, 'usage'], (res) => {
           try {
             res = res || {};
             if (res.settings) applySettings(res.settings);
             if (res[DBSites.CONFIG_KEY]) applyConfig(res[DBSites.CONFIG_KEY].data);
+            if (res.usage && typeof res.usage === 'object') {
+              usage = (res.usage.date === DBMeter.dateKey())
+                ? { date: res.usage.date, seconds: Number(res.usage.seconds) || 0 }
+                : { date: DBMeter.dateKey(), seconds: 0 };
+              lastUsageWritten = usage.seconds;
+            }
             damageCache = (res.damage && typeof res.damage === 'object') ? res.damage : {};
             const entry = damageCache[DMG_KEY];
             // Skip if onChanged already adopted a newer cross-tab write.
@@ -351,6 +371,13 @@
             if (changes[DBSites.CONFIG_KEY] && changes[DBSites.CONFIG_KEY].newValue) {
               applyConfig(changes[DBSites.CONFIG_KEY].newValue.data);
             }
+            if (changes.usage && changes.usage.newValue && typeof changes.usage.newValue === 'object') {
+              const nv = changes.usage.newValue;
+              usage = (nv.date === DBMeter.dateKey())
+                ? { date: nv.date, seconds: Number(nv.seconds) || 0 }
+                : { date: DBMeter.dateKey(), seconds: 0 };
+              lastUsageWritten = usage.seconds;
+            }
             if (changes.damage && changes.damage.newValue) {
               damageCache = changes.damage.newValue;
               const entry = damageCache[DMG_KEY];
@@ -377,6 +404,35 @@
       } catch (e) { /* ignore */ }
     }
 
+    // Daily time budget storage: merge this tab's accumulated seconds into the
+    // shared counter (read-modify-write; two tabs writing at once can undercount
+    // by one flush interval, accepted for MVP).
+    function flushUsage(now) {
+      const dk = DBMeter.dateKey();
+      if (usage.date !== dk) { usage = { date: dk, seconds: 0 }; lastUsageWritten = 0; }
+      const delta = Math.max(0, usage.seconds - lastUsageWritten);
+      if (delta <= 0) return;
+      lastUsageWritten = usage.seconds;
+      try {
+        cr.storage.local.get('usage', (res) => {
+          try {
+            const prev = (res && res.usage && res.usage.date === dk) ? (Number(res.usage.seconds) || 0) : 0;
+            const merged = Math.min(prev + delta, 24 * 3600);
+            usage.seconds = merged;
+            lastUsageWritten = merged;
+            cr.storage.local.set({ usage: { date: dk, seconds: merged } });
+          } catch (err) { /* ignore */ }
+        });
+      } catch (e) { /* ignore */ }
+    }
+
+    function overTimeBudget() {
+      if (!settings.timeLimit.enabled) return false;
+      const dk = DBMeter.dateKey();
+      if (usage.date !== dk) { usage = { date: dk, seconds: 0 }; lastUsageWritten = 0; }
+      return usage.seconds >= settings.timeLimit.minutes * 60;
+    }
+
     // ---- Main loop (all DOM writes happen here) ----------------------------
     function loop() {
       try {
@@ -388,8 +444,22 @@
           onNav();
         }
         DBMeter.tick(state, now);
-        applyVisuals();
-        if (state.d >= 0.995 && !killOn) {
+        // Active-time accounting: counts while we're scrolling or in video
+        // mode with input within the last 10s. Pausing to read still counts
+        // briefly; stopping entirely stops the clock.
+        if (enabled && active && now - lastInputAt < 10000) {
+          usage.seconds += 0.25;
+        }
+        if (storageLoaded && now - usageFlushAt >= 5000) {
+          usageFlushAt = now;
+          flushUsage(now);
+        }
+        const forced = overTimeBudget();
+        const effD = forced ? 1 : state.d;
+        applyVisuals(effD);
+        if (forced) {
+          if (!killOn) { killOn = true; sendFeedKill(true); }
+        } else if (state.d >= 0.995 && !killOn) {
           killOn = true;
           sendFeedKill(true);
         } else if (state.d < 0.85 && killOn) {

@@ -36,6 +36,14 @@ const DBMeter = {
     s.lastTick = now;
     return s;
   },
+
+  // Local-date key used to roll the daily time budget over at midnight.
+  dateKey(d) {
+    const x = d || new Date();
+    const m = String(x.getMonth() + 1).padStart(2, '0');
+    const day = String(x.getDate()).padStart(2, '0');
+    return x.getFullYear() + '-' + m + '-' + day;
+  },
 };
 
 if (typeof module !== 'undefined') module.exports = DBMeter;

@@ -134,6 +134,48 @@ const toggled = await e2eB.evaluate(() => ({
 ok('disabled site: no damage, no overlay', toggled.d === '' && !toggled.overlay, JSON.stringify(toggled));
 await sw.evaluate(() => chrome.storage.local.set({ settings: { sites: { other: true } } }));
 
+// ---- daily time limit: counting, enforcement, release ----------------------
+const today = () => new Date().toLocaleDateString('en-CA');
+
+// counting: enabled with a huge budget, wheel, active time must accumulate
+await sw.evaluate((dk) => chrome.storage.local.set({
+  settings: { sites: { other: true }, timeLimit: { enabled: true, minutes: 720 } },
+  usage: { date: dk, seconds: 0 },
+}), today());
+await e2eB.waitForTimeout(1200);
+await wheel(e2eB, 5, 1000);
+await e2eB.waitForTimeout(7000); // active window is 10s after input; flush every 5s
+const counted = await sw.evaluate(async () => (await chrome.storage.local.get('usage')).usage.seconds);
+ok('time limit counts active scrolling', counted > 0, `seconds=${counted}`);
+
+// enforcement: budget exhausted -> full break visuals + feed-kill rules
+await sw.evaluate((dk) => chrome.storage.local.set({
+  settings: { sites: { other: true }, timeLimit: { enabled: true, minutes: 1 } },
+  usage: { date: dk, seconds: 60 },
+}), today());
+await e2eB.waitForTimeout(2500);
+const forced = await e2eB.evaluate(() => ({
+  d: getComputedStyle(document.documentElement).getPropertyValue('--d').trim(),
+  overlay: !!(document.getElementById('db-overlay') && document.getElementById('db-overlay').isConnected),
+}));
+const forcedRules = await sw.evaluate(async () => (await chrome.declarativeNetRequest.getDynamicRules()).length);
+ok('time limit pins full break', forced.d === '1' && forced.overlay, JSON.stringify(forced));
+ok('time limit fires feed-kill', forcedRules >= 1, `rules=${forcedRules}`);
+
+// release: fresh budget + low damage -> kill rules removed
+await sw.evaluate((dk) => chrome.storage.local.set({
+  usage: { date: dk, seconds: 0 },
+  damage: { all: { d: 0.1, t: Date.now() } },
+}), today());
+await e2eB.waitForTimeout(2500);
+const released = await sw.evaluate(async () => (await chrome.declarativeNetRequest.getDynamicRules()).length);
+ok('time limit releases after budget reset', released === 0, `rules=${released}`);
+
+// restore defaults so the popup test sees a clean slate
+await sw.evaluate(() => chrome.storage.local.set({
+  settings: { sites: { other: true }, sensitivity: 1, timeLimit: { enabled: false, minutes: 60 } },
+}));
+
 // ---- popup binds and saves -------------------------------------------------
 const popup = await ctx.newPage();
 await popup.goto(`chrome-extension://${extId}/popup.html`, { waitUntil: 'load' });
@@ -142,8 +184,10 @@ const popupState = await popup.evaluate(() => ({
   hasOther: !!document.getElementById('site-other'),
   otherChecked: document.getElementById('site-other').checked,
   hasSlider: !!document.getElementById('sensitivity'),
+  hasTimeEnabled: !!document.getElementById('time-enabled'),
+  hasTimeMinutes: !!document.getElementById('time-minutes'),
 }));
-ok('popup renders all toggles', popupState.hasOther && popupState.hasOther && popupState.hasSlider, JSON.stringify(popupState));
+ok('popup renders all toggles', popupState.hasOther && popupState.hasSlider && popupState.hasTimeEnabled && popupState.hasTimeMinutes, JSON.stringify(popupState));
 await popup.uncheck('#site-other');
 await popup.waitForTimeout(600);
 const saved = await sw.evaluate(async () => (await chrome.storage.local.get('settings')).settings.sites.other);

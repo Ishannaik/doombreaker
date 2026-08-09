@@ -48,6 +48,28 @@
     accent-color: #e33;
     margin: 4px 0 0;
   }
+  .time {
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid #2a2a2a;
+  }
+  .time-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #999;
+    margin-top: 4px;
+  }
+  input[type="number"] {
+    width: 56px;
+    background: #1b1b22;
+    color: #ddd;
+    border: 1px solid #33333d;
+    border-radius: 4px;
+    padding: 2px 4px;
+    font: 12px system-ui, sans-serif;
+  }
 </style>
 </head>
 <body>
@@ -58,6 +80,13 @@
   <label class="site"><input type="checkbox" id="site-youtube"> YouTube Shorts</label>
   <label class="site"><input type="checkbox" id="site-linkedin"> LinkedIn</label>
   <label class="site"><input type="checkbox" id="site-other"> Other sites</label>
+  <div class="time">
+    <label class="site"><input type="checkbox" id="time-enabled"> Daily time limit</label>
+    <div class="time-row">
+      <label for="time-minutes">Minutes / day</label>
+      <input type="number" id="time-minutes" min="15" max="720" step="15" value="60">
+    </div>
+  </div>
   <div class="sens">
     <div class="sens-row">
       <label for="sensitivity">Sensitivity</label>

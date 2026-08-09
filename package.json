@@ -2,7 +2,6 @@
   "name": "doombreaker",
   "version": "0.2.0",
   "private": true,
-  "type": "module",
   "description": "Ship verification tooling for the DoomBreaker extension",
   "scripts": {
     "test": "node test/meter.test.mjs && node test/sites.test.mjs",
