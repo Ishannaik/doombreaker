@@ -32,5 +32,6 @@ Optional daily time limit (off by default): set minutes per day in the popup, pl
 ## Dev
 - Unit tests: `node test/meter.test.mjs` and `node test/sites.test.mjs`
 - Visual harness: serve the repo root (`python -m http.server 8377`) and open `http://localhost:8377/test/harness.html`. Buttons drive damage levels through the real pipeline.
+- Website: serve the repo root and open `http://localhost:8377/site/index.html` — landing page with live damage demo (custom elements, SEO metadata).
 
 Spec: `docs/superpowers/specs/2026-07-06-doombreaker-design.md`

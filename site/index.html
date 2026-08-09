@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>DoomBreaker — The page breaks as you doom-scroll</title>
+<meta name="description" content="DoomBreaker is a free open-source Chrome extension that breaks the page as you doom-scroll. Blur creeps in, color drains, the glass cracks, and at full damage the feed stops loading. Stop scrolling and the page heals. No lockouts, no guilt modals, no tracking.">
+<meta name="robots" content="index, follow">
+<meta name="theme-color" content="#0b0b10">
+<link rel="canonical" href="https://doombreaker.dev/">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="DoomBreaker">
+<meta property="og:title" content="DoomBreaker — The page breaks as you doom-scroll">
+<meta property="og:description" content="Blur creeps in, color drains, the glass cracks. At full damage the feed stops loading. The discomfort is the wall. Free, open-source, no tracking.">
+<meta property="og:url" content="https://doombreaker.dev/">
+<meta property="og:image" content="https://doombreaker.dev/store/frame-full.jpg">
+
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="DoomBreaker — The page breaks as you doom-scroll">
+<meta name="twitter:description" content="Blur creeps in, color drains, the glass cracks. At full damage the feed stops loading. The discomfort is the wall.">
+<meta name="twitter:image" content="https://doombreaker.dev/store/frame-full.jpg">
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+
+<!-- Structured data -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "DoomBreaker",
+  "applicationCategory": "BrowserApplication",
+  "operatingSystem": "Chrome",
+  "browserRequirements": "Requires Chrome with declarativeNetRequest support",
+  "description": "Chrome extension that breaks the page as you doom-scroll. Blur, cracks, glitch, and a network-level feed block at full damage. Heals when you stop scrolling. No lockouts, no tracking.",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "author": { "@type": "Organization", "name": "Ishan Naik", "url": "https://github.com/Ishannaik" },
+  "codeRepository": "https://github.com/Ishannaik/doombreaker",
+  "license": "https://opensource.org/license/mit",
+  "featureList": [
+    "Works on every website",
+    "Per-site toggles",
+    "Sensitivity slider",
+    "Optional daily time limit",
+    "One-click presets",
+    "No tracking, no data sent anywhere"
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Does DoomBreaker lock me out of websites?",
+      "acceptedAnswer": { "@type": "Answer", "text": "No. There are no lockouts and no guilt modals. The page breaks visually and at full damage the feed stops loading, but you can always close the tab or stop scrolling to heal." }
+    },
+    {
+      "@type": "Question",
+      "name": "Does DoomBreaker work on every website?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. It has precise rules for X/Twitter, Reddit, Instagram, YouTube Shorts, and LinkedIn, and a generic fallback that applies to every other website based on wheel scrolling." }
+    },
+    {
+      "@type": "Question",
+      "name": "Does DoomBreaker track me or send my data anywhere?",
+      "acceptedAnswer": { "@type": "Answer", "text": "No. The extension sends no data anywhere. There is no analytics. The only network call is a periodic refresh of the per-site configuration from the project's GitHub repository." }
+    },
+    {
+      "@type": "Question",
+      "name": "Does DoomBreaker affect regular YouTube videos?",
+      "acceptedAnswer": { "@type": "Answer", "text": "No. Only YouTube Shorts are affected. Regular videos are untouched." }
+    },
+    {
+      "@type": "Question",
+      "name": "What happens at full damage?",
+      "acceptedAnswer": { "@type": "Answer", "text": "At full damage the page shakes and a network-level rule blocks the feed from loading, so scrolling no longer gives you new content. The block lifts as soon as the damage heals below the threshold." }
+    },
+    {
+      "@type": "Question",
+      "name": "Is DoomBreaker free and open source?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. DoomBreaker is free and open source under the MIT license. Source code is on GitHub." }
+    }
+  ]
+}
+</script>
+
+<link rel="stylesheet" href="styles.css">
+<script src="components.js" defer></script>
+</head>
+<body>
+
+<!-- ============ NAV ============ -->
+<db-nav>
+  <a class="brand" href="#top" aria-label="DoomBreaker home">
+    <span class="brand-mark" aria-hidden="true"></span>
+    <span class="brand-name">DOOMBREAKER</span>
+    <span class="brand-status"><span class="dot" aria-hidden="true"></span>ARMED</span>
+  </a>
+  <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">
+    <span class="nav-toggle-label">MENU</span>
+    <span class="nav-toggle-bars" aria-hidden="true"></span>
+  </button>
+  <nav id="nav-links" aria-label="Primary">
+    <a href="#how">HOW IT BREAKS</a>
+    <a href="#effects">EFFECTS</a>
+    <a href="#sites">SITES</a>
+    <a href="#controls">CONTROLS</a>
+    <a href="#faq">FAQ</a>
+    <a class="nav-cta" href="#install">GET IT</a>
+  </nav>
+</db-nav>
+
+<main id="top">
+
+  <!-- ============ HERO ============ -->
+  <section class="hero" aria-labelledby="hero-title">
+    <p class="kicker">A CHROME EXTENSION FOR YOUR WORST HABIT</p>
+    <h1 id="hero-title">THE PAGE BREAKS AS YOU DOOM-SCROLL.</h1>
+    <p class="hero-sub">
+      Blur creeps in. Color drains. The glass cracks.
+      At full damage the feed <em>stops loading</em>.
+      Stop scrolling, and the page heals.
+    </p>
+    <p class="hero-note">No lockouts. No guilt modals. The discomfort does the work.</p>
+    <div class="hero-cta">
+      <a class="btn btn-primary" href="#install">Get DoomBreaker</a>
+      <a class="btn btn-ghost" href="https://github.com/Ishannaik/doombreaker" rel="noopener" target="_blank">View on GitHub</a>
+    </div>
+
+    <!-- Live demo: wheel over the frame, the page breaks for real -->
+    <db-demo aria-label="Interactive damage demo. Scroll over the feed to break it.">
+      <div class="demo-stage">
+        <div class="demo-frame" tabindex="0" role="application" aria-roledescription="demo feed">
+          <div class="demo-feed">
+            <article class="demo-post"><span class="demo-avatar" aria-hidden="true"></span><div><span class="demo-handle">@someone</span><span class="demo-line"></span><span class="demo-line short"></span></div></article>
+            <article class="demo-post"><span class="demo-avatar" aria-hidden="true"></span><div><span class="demo-handle">@another</span><span class="demo-line"></span><span class="demo-line short"></span></div></article>
+            <article class="demo-post"><span class="demo-avatar" aria-hidden="true"></span><div><span class="demo-handle">@feed</span><span class="demo-line"></span><span class="demo-line short"></span></div></article>
+            <article class="demo-post"><span class="demo-avatar" aria-hidden="true"></span><div><span class="demo-handle">@doom</span><span class="demo-line"></span><span class="demo-line short"></span></div></article>
+            <article class="demo-post"><span class="demo-avatar" aria-hidden="true"></span><div><span class="demo-handle">@scroll</span><span class="demo-line"></span><span class="demo-line short"></span></div></article>
+          </div>
+          <div class="demo-vignette" aria-hidden="true"></div>
+          <svg class="demo-cracks" aria-hidden="true"></svg>
+          <div class="demo-blocked" aria-hidden="true">
+            <span class="demo-blocked-line">FEED BLOCKED</span>
+            <span class="demo-blocked-sub">STOP SCROLLING TO HEAL</span>
+          </div>
+        </div>
+        <div class="demo-hint" aria-hidden="true">
+          <span class="hint-wheel">SCROLL HERE</span>
+          <span class="hint-or">OR</span>
+          <label class="hint-slider"><span>DRAG</span><input type="range" min="0" max="100" value="0" aria-label="Demo damage level"></label>
+        </div>
+        <db-meter d="0" label="DAMAGE"></db-meter>
+      </div>
+    </db-demo>
+  </section>
+
+  <!-- ============ HOW IT BREAKS ============ -->
+  <section class="section" id="how" aria-labelledby="how-title">
+    <p class="kicker">01 / HOW IT BREAKS</p>
+    <h2 id="how-title">One meter. Four stages. Full break.</h2>
+    <p class="section-intro">A shared damage meter <code>d</code> runs from 0 to 1.
+      Scrolling feeds it. Idle heals it. Each threshold adds a new layer of breaking.</p>
+    <div class="thresholds">
+      <db-threshold at="0.30" name="BLUR &amp; DRAIN">
+        <p>The page softens. Blur creeps in, color drains to grayscale, darkness closes from the edges.</p>
+      </db-threshold>
+      <db-threshold at="0.60" name="CRACKS &amp; GLITCH">
+        <p>Procedural cracks spider across the screen. The page tears and glitches in hard cuts.</p>
+      </db-threshold>
+      <db-threshold at="0.90" name="SHAKE">
+        <p>Everything shakes. The tremor scales with the damage, from a shiver to full violence.</p>
+      </db-threshold>
+      <db-threshold at="0.995" name="FEED KILL">
+        <p>A network-level rule blocks the feed. Scrolling returns nothing until you heal below 0.85.</p>
+      </db-threshold>
+    </div>
+  </section>
+
+  <!-- ============ EFFECTS ============ -->
+  <section class="section" id="effects" aria-labelledby="effects-title">
+    <p class="kicker">02 / THE EFFECTS</p>
+    <h2 id="effects-title">Every effect, individually toggleable.</h2>
+    <p class="section-intro">Turn the discomfort up or down. All effects are on by default, and each can be switched off alone.</p>
+    <div class="effect-grid">
+      <db-effect-card name="BLUR" code="d ≥ 0.30">
+        <p>Progressive blur and grayscale. The feed becomes unreadable long before it becomes painful.</p>
+      </db-effect-card>
+      <db-effect-card name="CRACKS" code="d ≥ 0.60">
+        <p>Seeded glass cracks draw themselves in as damage rises. Same geometry, every session, no randomness at render time.</p>
+      </db-effect-card>
+      <db-effect-card name="GLITCH" code="d ≥ 0.60">
+        <p>Hard clip-path slices, three short bursts per cycle. Reads as intermittent hardware failure, not a strobe.</p>
+      </db-effect-card>
+      <db-effect-card name="SHAKE" code="d ≥ 0.90">
+        <p>Amplitude scales with damage. Starts as a tremor, ends as violence. Auto-disabled for reduced-motion users.</p>
+      </db-effect-card>
+      <db-effect-card name="FEED KILL" code="d ≥ 0.995">
+        <p>declarativeNetRequest blocks the feed's API paths. Known sites get precise blocks; everything else gets a generic kill.</p>
+      </db-effect-card>
+      <db-effect-card name="DAILY LIMIT" code="opt-in">
+        <p>Set minutes per day, or per site. When the budget runs out, the page pins at full break until the local day rolls over. Off by default.</p>
+      </db-effect-card>
+    </div>
+  </section>
+
+  <!-- ============ SITES ============ -->
+  <section class="section" id="sites" aria-labelledby="sites-title">
+    <p class="kicker">03 / WHERE IT WORKS</p>
+    <h2 id="sites-title">Everywhere. Including the places you check the most.</h2>
+    <p class="section-intro">Precise rules for the big feeds, a generic fallback for everything else.</p>
+    <div class="site-list" role="list">
+      <db-site-tag name="X / Twitter" note="everywhere" role="listitem"></db-site-tag>
+      <db-site-tag name="Reddit" note="everywhere" role="listitem"></db-site-tag>
+      <db-site-tag name="Instagram" note="home + reels" role="listitem"></db-site-tag>
+      <db-site-tag name="YouTube Shorts" note="shorts only" role="listitem"></db-site-tag>
+      <db-site-tag name="LinkedIn" note="feed only" role="listitem"></db-site-tag>
+      <db-site-tag name="Every other site" note="wheel-scroll based" role="listitem"></db-site-tag>
+    </div>
+    <p class="section-footnote">Per-site rules live in a remote config and refresh every 6 hours, so the extension keeps working when sites change their internals. Shorts and Reels damage ~3× faster than scrolling, per video watched.</p>
+  </section>
+
+  <!-- ============ CONTROLS ============ -->
+  <section class="section" id="controls" aria-labelledby="controls-title">
+    <p class="kicker">04 / CONTROLS</p>
+    <h2 id="controls-title">A fractured control panel in your toolbar.</h2>
+    <p class="section-intro">Every site, every effect, every dial. One popup.</p>
+    <div class="control-grid">
+      <div class="control"><span class="control-label">SITES</span><span class="control-value">PER-SITE TOGGLES</span></div>
+      <div class="control"><span class="control-label">BRUTALITY</span><span class="control-value">0.5 GENTLE → 2 BRUTAL</span></div>
+      <div class="control"><span class="control-label">PRESETS</span><span class="control-value">GENTLE / NORMAL / BRUTAL</span></div>
+      <div class="control"><span class="control-label">HEAL SPEED</span><span class="control-value">SLOW → FASTEST</span></div>
+      <div class="control"><span class="control-label">TIME LIMIT</span><span class="control-value">MINUTES / DAY, PER SITE</span></div>
+      <div class="control"><span class="control-label">RESET</span><span class="control-value">ZERO THE METER</span></div>
+    </div>
+    <p class="section-footnote">One shared damage meter across all sites. Hopping from X to Reddit does not reset your damage. Damage syncs across tabs via <code>chrome.storage.local</code>.</p>
+  </section>
+
+  <!-- ============ FAQ ============ -->
+  <section class="section" id="faq" aria-labelledby="faq-title">
+    <p class="kicker">05 / FAQ</p>
+    <h2 id="faq-title">The wall, explained.</h2>
+    <db-faq>
+      <details>
+        <summary>Does it lock me out of websites?</summary>
+        <p>No. There are no lockouts and no guilt modals. The page breaks visually, and at full damage the feed stops loading, but you can always close the tab or stop scrolling to heal.</p>
+      </details>
+      <details>
+        <summary>Does it work on every website?</summary>
+        <p>Yes. Precise rules for X/Twitter, Reddit, Instagram, YouTube Shorts, and LinkedIn, plus a generic fallback for every other site based on wheel scrolling.</p>
+      </details>
+      <details>
+        <summary>Does it track me?</summary>
+        <p>No. The extension sends no data anywhere. No analytics. The only network call is a periodic refresh of the per-site configuration from the project's GitHub repo.</p>
+      </details>
+      <details>
+        <summary>Does it break regular YouTube videos?</summary>
+        <p>No. Only YouTube Shorts are affected. Regular videos are untouched.</p>
+      </details>
+      <details>
+        <summary>What happens at full damage?</summary>
+        <p>The page shakes, and a network-level rule blocks the feed from loading. Scrolling returns nothing until the damage heals below 0.85.</p>
+      </details>
+      <details>
+        <summary>Is it free and open source?</summary>
+        <p>Yes. MIT licensed on GitHub, with unit tests and an automated ship-verification suite.</p>
+      </details>
+    </db-faq>
+  </section>
+
+  <!-- ============ INSTALL ============ -->
+  <section class="section install" id="install" aria-labelledby="install-title">
+    <p class="kicker">06 / INSTALL</p>
+    <h2 id="install-title">Arm the page.</h2>
+    <p class="section-intro">DoomBreaker is not on the Chrome Web Store yet. Install it as an unpacked extension in two minutes.</p>
+    <ol class="install-steps">
+      <li>Open <code>chrome://extensions</code> and enable <strong>Developer mode</strong> (top-right switch).</li>
+      <li>Click <strong>Load unpacked</strong> and select the <code>doombreaker</code> folder from the repo.</li>
+      <li>Done. The popup gives you per-site toggles, brutality, presets, heal speed, and the daily limit.</li>
+    </ol>
+    <div class="install-cta">
+      <a class="btn btn-primary" href="https://github.com/Ishannaik/doombreaker/releases" rel="noopener" target="_blank">Download the release</a>
+      <a class="btn btn-ghost" href="https://github.com/Ishannaik/doombreaker" rel="noopener" target="_blank">Read the source</a>
+    </div>
+  </section>
+
+</main>
+
+<!-- ============ FOOTER ============ -->
+<footer class="footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <span class="brand-name">DOOMBREAKER</span>
+      <p>Free, open source, MIT. The discomfort is the wall.</p>
+    </div>
+    <div class="footer-links">
+      <a href="https://github.com/Ishannaik/doombreaker" rel="noopener" target="_blank">GitHub</a>
+      <a href="https://github.com/Ishannaik/doombreaker/releases" rel="noopener" target="_blank">Releases</a>
+      <a href="#top">Back to top</a>
+    </div>
+  </div>
+  <div class="footer-line" aria-hidden="true"></div>
+</footer>
+
+</body>
+</html>
