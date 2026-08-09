@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "sites": [
+    { "key": "x",         "host": "(^|\\.)(x|twitter)\\.com$",                  "mode": "wheel" },
+    { "key": "reddit",    "host": "(^|\\.)reddit\\.com$",                       "mode": "wheel" },
+    { "key": "instagram", "host": "(^|\\.)instagram\\.com$",                    "activePaths": ["/"], "activePrefixes": ["/reel"], "videoPrefixes": ["/reel"] },
+    { "key": "youtube",   "host": "(^|\\.)youtube\\.com$",                      "activePrefixes": ["/shorts"], "videoPrefixes": ["/shorts"], "videoPath": "^/shorts/[^/]+" },
+    { "key": "linkedin",  "host": "(^|\\.)linkedin\\.com$",                     "activePrefixes": ["/feed"] }
+  ],
+  "kill": {
+    "x": ["||x.com/i/api/graphql", "||twitter.com/i/api/graphql"],
+    "reddit": ["||reddit.com/svc/shreddit/"],
+    "instagram": ["||instagram.com/graphql/query"],
+    "youtube": ["||youtube.com/youtubei/v1/reel/"],
+    "linkedin": ["||linkedin.com/voyager/api/feed"]
+  }
+}

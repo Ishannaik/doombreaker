@@ -3,7 +3,7 @@
   "name": "DoomBreaker",
   "version": "0.1.0",
   "description": "The page breaks as you doom-scroll. Damage heals when you stop.",
-  "permissions": ["storage", "declarativeNetRequest"],
+  "permissions": ["storage", "declarativeNetRequest", "alarms"],
   "background": {
     "service_worker": "background.js"
   },
@@ -13,7 +13,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["meter.js", "content.js"],
+      "js": ["meter.js", "sites.js", "content.js"],
       "css": ["effects.css"],
       "run_at": "document_start"
     }

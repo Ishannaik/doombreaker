@@ -6,25 +6,21 @@
   'use strict';
   try {
     if (typeof DBMeter === 'undefined') return;
+    if (typeof DBSites === 'undefined') return;
 
-    // ---- Sites (contract) -------------------------------------------------
-    const SITES = [
-      { key: 'x',         host: /(^|\.)(x|twitter)\.com$/, active: () => true,                                mode: () => 'wheel' },
-      { key: 'reddit',    host: /(^|\.)reddit\.com$/,      active: () => true,                                mode: () => 'wheel' },
-      { key: 'instagram', host: /(^|\.)instagram\.com$/,   active: p => p === '/' || p.startsWith('/reel'),   mode: p => p.startsWith('/reel') ? 'video' : 'wheel' },
-      { key: 'youtube',   host: /(^|\.)youtube\.com$/,     active: p => p.startsWith('/shorts'),              mode: () => 'video' },
-      { key: 'linkedin',  host: /(^|\.)linkedin\.com$/,    active: p => p.startsWith('/feed'),                mode: () => 'wheel' },
-    ];
+    // ---- Site config -----------------------------------------------------
+    // Remote config/sites.json is the source of truth; DEFAULT_CONFIG is the
+    // offline fallback. loadStorage() replaces CONFIG when the fetch lands.
+    let CONFIG = DBSites.DEFAULT_CONFIG;
 
     // localhost included so the harness can be served over http for automated
     // browser tests; manifest matches never inject this script on localhost,
     // so the hook still can't exist on real sites.
     const isFileHarness = location.protocol === 'file:' || location.hostname === 'localhost';
-    // Site-agnostic: known sites keep their tuned active/mode rules; every
+    // Site-agnostic: known sites keep their tuned rules from the config; every
     // other host gets the generic always-active wheel fallback. The file://
     // and localhost harness lands in the same fallback.
-    const site = SITES.find(s => s.host.test(location.hostname))
-      || { key: 'other', host: /$^/, active: () => true, mode: () => 'wheel' };
+    let site = DBSites.matchSite(CONFIG, location.hostname);
 
     const CFG = DBMeter.CFG;
     // One shared damage pool across ALL sites: breaking X and hopping to
@@ -72,6 +68,12 @@
       enabled = settings.sites[site.key] !== false;
     }
 
+    function applyConfig(c) {
+      if (DBSites.validConfig(c)) CONFIG = c;
+      site = DBSites.matchSite(CONFIG, location.hostname);
+      enabled = settings.sites[site.key] !== false;
+    }
+
     // ---- SPA routing ------------------------------------------------------
     function fireNav() {
       try { window.dispatchEvent(new Event('db:nav')); } catch (e) { /* ignore */ }
@@ -92,16 +94,13 @@
     } catch (e) { /* ignore */ }
     window.addEventListener('popstate', fireNav);
 
-    function isVideoPath(p) {
-      return /^\/shorts\/[^/]+/.test(p) || p.startsWith('/reel');
-    }
-
     function onNav() {
       try {
         const p = location.pathname;
-        active = !!site.active(p);
-        mode = site.mode(p);
-        if (enabled && active && mode === 'video' && p !== lastVideoPath && isVideoPath(p)) {
+        site = DBSites.matchSite(CONFIG, location.hostname); // config may have refreshed
+        active = DBSites.siteActive(site, p);
+        mode = DBSites.siteMode(site, p);
+        if (enabled && active && mode === 'video' && p !== lastVideoPath && DBSites.isVideoPath(site, p)) {
           DBMeter.addVideo(state, Date.now(), settings.sensitivity);
         }
         lastVideoPath = p;
@@ -254,10 +253,11 @@
     function loadStorage() {
       if (!(cr && cr.storage && cr.storage.local)) { storageLoaded = true; return; }
       try {
-        cr.storage.local.get(['damage', 'settings'], (res) => {
+        cr.storage.local.get(['damage', 'settings', DBSites.CONFIG_KEY], (res) => {
           try {
             res = res || {};
             if (res.settings) applySettings(res.settings);
+            if (res[DBSites.CONFIG_KEY]) applyConfig(res[DBSites.CONFIG_KEY].data);
             damageCache = (res.damage && typeof res.damage === 'object') ? res.damage : {};
             const entry = damageCache[DMG_KEY];
             // Skip if onChanged already adopted a newer cross-tab write.
@@ -283,6 +283,9 @@
             if (changes.settings && changes.settings.newValue) {
               applySettings(changes.settings.newValue);
             }
+            if (changes[DBSites.CONFIG_KEY] && changes[DBSites.CONFIG_KEY].newValue) {
+              applyConfig(changes[DBSites.CONFIG_KEY].newValue.data);
+            }
             if (changes.damage && changes.damage.newValue) {
               damageCache = changes.damage.newValue;
               const entry = damageCache[DMG_KEY];
@@ -302,7 +305,9 @@
     function sendFeedKill(on) {
       try {
         if (!(cr && cr.runtime && cr.runtime.sendMessage)) return;
-        const p = cr.runtime.sendMessage({ type: 'db-feedkill', on });
+        // host lets the worker add a generic block-all-XHR rule for unknown
+        // sites; known sites keep their precise API-path rules.
+        const p = cr.runtime.sendMessage({ type: 'db-feedkill', on: on, host: location.hostname });
         if (p && typeof p.catch === 'function') p.catch(() => { /* ignore */ });
       } catch (e) { /* ignore */ }
     }
