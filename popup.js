@@ -1,9 +1,9 @@
-// DoomBreaker popup — binds 5 site checkboxes + sensitivity slider to storage 'settings'.
+// DoomBreaker popup — binds site checkboxes + sensitivity slider to storage 'settings'.
 
-const SITE_KEYS = ['x', 'reddit', 'instagram', 'youtube', 'linkedin'];
+const SITE_KEYS = ['x', 'reddit', 'instagram', 'youtube', 'linkedin', 'other'];
 
 const DEFAULTS = {
-  sites: { x: true, reddit: true, instagram: true, youtube: true, linkedin: true },
+  sites: { x: true, reddit: true, instagram: true, youtube: true, linkedin: true, other: true },
   sensitivity: 1
 };
 

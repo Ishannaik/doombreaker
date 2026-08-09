@@ -12,17 +12,7 @@
   },
   "content_scripts": [
     {
-      "matches": [
-        "*://x.com/*",
-        "*://twitter.com/*",
-        "*://*.reddit.com/*",
-        "*://instagram.com/*",
-        "*://www.instagram.com/*",
-        "*://youtube.com/*",
-        "*://www.youtube.com/*",
-        "*://linkedin.com/*",
-        "*://www.linkedin.com/*"
-      ],
+      "matches": ["<all_urls>"],
       "js": ["meter.js", "content.js"],
       "css": ["effects.css"],
       "run_at": "document_start"

@@ -20,13 +20,11 @@
     // browser tests; manifest matches never inject this script on localhost,
     // so the hook still can't exist on real sites.
     const isFileHarness = location.protocol === 'file:' || location.hostname === 'localhost';
-    let site = SITES.find(s => s.host.test(location.hostname)) || null;
-    // The file:// test harness has no matching host; use a synthetic
-    // always-active wheel site so the harness exercises the real pipeline.
-    if (!site && isFileHarness) {
-      site = { key: 'x', host: /$^/, active: () => true, mode: () => 'wheel' };
-    }
-    if (!site) return;
+    // Site-agnostic: known sites keep their tuned active/mode rules; every
+    // other host gets the generic always-active wheel fallback. The file://
+    // and localhost harness lands in the same fallback.
+    const site = SITES.find(s => s.host.test(location.hostname))
+      || { key: 'other', host: /$^/, active: () => true, mode: () => 'wheel' };
 
     const CFG = DBMeter.CFG;
     // One shared damage pool across ALL sites: breaking X and hopping to
@@ -40,7 +38,7 @@
     // ---- State ------------------------------------------------------------
     const state = DBMeter.create(Date.now());
     let settings = {
-      sites: { x: true, reddit: true, instagram: true, youtube: true, linkedin: true },
+      sites: { x: true, reddit: true, instagram: true, youtube: true, linkedin: true, other: true },
       sensitivity: 1,
     };
     let enabled = true;           // settings.sites[site.key]

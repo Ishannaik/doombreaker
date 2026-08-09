@@ -10,6 +10,7 @@ No lockouts. No guilt modals. The discomfort does the work.
 - instagram.com (home feed + reels only)
 - youtube.com (**Shorts only**; regular videos untouched)
 - linkedin.com (feed only)
+- every other website (full page, wheel-scroll based)
 
 Shorts/Reels damage per *video watched* (~3× faster than scrolling).
 
@@ -19,7 +20,7 @@ Shorts/Reels damage per *video watched* (~3× faster than scrolling).
 3. Toolbar popup: per-site toggles + sensitivity (0.5 gentle → 2 brutal)
 
 ## How it works
-One damage meter `d` (0→1) per site, fed by wheel distance (or videos advanced), healing ~0.8%/sec when idle. `d` drives a CSS variable; thresholds add effect classes:
+One shared damage meter `d` (0→1), fed by wheel distance (or videos advanced), healing ~0.8%/sec when idle. `d` drives a CSS variable; thresholds add effect classes:
 `0.30` blur+grayscale+vignette → `0.60` procedural SVG cracks + glitch → `0.90` shake → `0.995` declarativeNetRequest rules block the feed's pagination API until you heal below `0.85`.
 
 `prefers-reduced-motion` disables shake/glitch. Damage syncs across tabs via `chrome.storage.local`. Permissions: `storage`, `declarativeNetRequest` only.
