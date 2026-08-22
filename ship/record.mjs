@@ -19,7 +19,7 @@ const ctx = await chromium.launchPersistentContext(PROFILE, {
   headless: true,
   viewport: { width: 1280, height: 800 },
   recordVideo: { dir: '/tmp/db-video', size: { width: 1280, height: 800 } },
-  args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`],
+  args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`, '--disable-gpu'],
 });
 
 const page = await ctx.newPage();
@@ -51,7 +51,7 @@ const ctx2 = await chromium.launchPersistentContext(PROFILE, {
   executablePath: '/home/ubuntu/.cache/ms-playwright/chromium-1217/chrome-linux/chrome',
   headless: true,
   viewport: { width: 300, height: 400 },
-  args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`],
+  args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`, '--disable-gpu'],
 });
 let sw2 = null;
 for (let i = 0; i < 20 && !sw2; i++) {

@@ -27,6 +27,8 @@ Per-site rules (host regex, active/video path prefixes, kill filters) live in th
 
 Optional daily time limit (off by default): set minutes per day in the popup, plus optional per-site overrides (blank = use the global budget). Active scrolling time is counted per site by the service worker — the single writer, so multi-tab usage cannot lose time. When the budget runs out the page pins at full break with the feed-kill until the local day rolls over. Every effect can be toggled individually in the popup (blur, cracks, glitch, shake, network block), all on by default, plus one-click presets (Gentle / Normal / Brutal), a heal-speed selector, and a reset-damage button.
 
+Companion cat (on by default): as damage rises the cat peeks in (`0.25`), stares you down (`0.55`), sits on your feed (`0.75`), and at `0.92` plants a full "FEED BLOCKED" wall over the page. Pet it three times to heal a chunk of damage and keep scrolling — reflection instead of guilt. Popup toggles: cat on/off, block-the-feed on/off, pet-to-heal on/off.
+
 `prefers-reduced-motion` disables shake/glitch. Damage syncs across tabs via `chrome.storage.local`. Permissions: `storage`, `declarativeNetRequest`, `alarms`.
 
 ## Dev

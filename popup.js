@@ -4,13 +4,15 @@
 
 const SITE_KEYS = ['x', 'reddit', 'instagram', 'youtube', 'linkedin', 'other'];
 const EFFECT_KEYS = ['blur', 'cracks', 'glitch', 'shake', 'kill'];
+const CAT_KEYS = ['enabled', 'block', 'heal'];
 
 const DEFAULTS = {
   sites: { x: true, reddit: true, instagram: true, youtube: true, linkedin: true, other: true },
   sensitivity: 1,
   timeLimit: { enabled: false, minutes: 60, perSite: {} },
   effects: { blur: true, cracks: true, glitch: true, shake: true, kill: true },
-  healSpeed: 1
+  healSpeed: 1,
+  cat: { enabled: true, block: true, heal: true }
 };
 
 const PRESETS = {
@@ -28,6 +30,7 @@ const healSpeed = document.getElementById('heal-speed');
 function siteCheckbox(k) { return document.getElementById('site-' + k); }
 function effCheckbox(k) { return document.getElementById('eff-' + k); }
 function tlInput(k) { return document.getElementById('tl-' + k); }
+function catCheckbox(k) { return document.getElementById('cat-' + k); }
 
 function currentSettings() {
   const sites = {};
@@ -35,6 +38,9 @@ function currentSettings() {
 
   const effects = {};
   for (const k of EFFECT_KEYS) effects[k] = effCheckbox(k).checked;
+
+  const cat = {};
+  for (const k of CAT_KEYS) cat[k] = catCheckbox(k).checked;
 
   const perSite = {};
   for (const k of SITE_KEYS) {
@@ -51,7 +57,8 @@ function currentSettings() {
       perSite: perSite
     },
     effects: effects,
-    healSpeed: Number(healSpeed.value) || 1
+    healSpeed: Number(healSpeed.value) || 1,
+    cat: cat
   };
 }
 
@@ -77,6 +84,9 @@ chrome.storage.local.get('settings').then(function (res) {
   const effects = s.effects || DEFAULTS.effects;
   for (const k of EFFECT_KEYS) effCheckbox(k).checked = effects[k] !== false;
 
+  const cat = Object.assign({}, DEFAULTS.cat, s.cat || {});
+  for (const k of CAT_KEYS) catCheckbox(k).checked = cat[k] !== false;
+
   const tl = s.timeLimit || DEFAULTS.timeLimit;
   timeEnabled.checked = !!tl.enabled;
   timeMinutes.value = (typeof tl.minutes === 'number' && tl.minutes > 0) ? tl.minutes : 60;
@@ -91,6 +101,7 @@ chrome.storage.local.get('settings').then(function (res) {
 for (const k of SITE_KEYS) siteCheckbox(k).addEventListener('change', save);
 for (const k of EFFECT_KEYS) effCheckbox(k).addEventListener('change', save);
 for (const k of SITE_KEYS) tlInput(k).addEventListener('change', save);
+for (const k of CAT_KEYS) catCheckbox(k).addEventListener('change', save);
 timeEnabled.addEventListener('change', save);
 timeMinutes.addEventListener('change', save);
 healSpeed.addEventListener('change', save);

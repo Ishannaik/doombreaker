@@ -39,6 +39,7 @@
       timeLimit: { enabled: false, minutes: 60, perSite: {} },
       effects: { blur: true, cracks: true, glitch: true, shake: true, kill: true },
       healSpeed: 1,
+      cat: { enabled: true, block: true, heal: true },
     };
     let enabled = true;           // settings.sites[site.key]
     let active = false;           // site.active(pathname)
@@ -53,6 +54,8 @@
     const fired = new Set();      // crack thresholds already fired
 
     let killOn = false;           // feed-kill message state
+
+    let cat = null;               // companion-cat widget (cat.js), lazy-built
 
     let damageCache = {};         // full {damage:{[siteKey]:{d,t}}} value
     let lastWriteT = 0;           // t of our last storage write (or newest adopted)
@@ -85,6 +88,13 @@
           : settings.timeLimit,
         effects: Object.assign({ blur: true, cracks: true, glitch: true, shake: true, kill: true }, (s.effects || {})),
         healSpeed: (typeof s.healSpeed === 'number' && s.healSpeed > 0) ? s.healSpeed : settings.healSpeed,
+        cat: (s.cat && typeof s.cat === 'object')
+          ? {
+              enabled: s.cat.enabled !== false, // default on
+              block: s.cat.block !== false,
+              heal: s.cat.heal !== false,
+            }
+          : settings.cat,
       };
       enabled = settings.sites[site.key] !== false;
     }
@@ -302,6 +312,27 @@
       }
     }
 
+    // ---- Companion cat -----------------------------------------------------
+    // Built lazily (first loop tick): document_start has no <head> yet for the
+    // widget stylesheet. Every entry point is guarded; failure hides the cat,
+    // never breaks the page.
+    function ensureCat() {
+      if (!settings.cat.enabled) return null;
+      if (cat && cat.el.isConnected) return cat;
+      try {
+        if (typeof DBCat === 'undefined') return null;
+        if (!document.documentElement) return null;
+        cat = DBCat.create({
+          onHeal() {
+            if (!settings.cat.heal) return;
+            state.d = clamp01(state.d - 0.35);
+            flushStorage(Date.now());
+          },
+        });
+        return cat;
+      } catch (e) { return null; }
+    }
+
     // ---- Visual application (loop only) -----------------------------------
     function setClass(el, cls, on) {
       if (on) el.classList.add(cls);
@@ -322,10 +353,28 @@
           if (ef.cracks) crackTick(d);
           else if (cracksSvg && cracksSvg.firstChild) clearCracks();
         }
+        if (typeof DBCat !== 'undefined') {
+          if (settings.cat.enabled) {
+            const c = ensureCat();
+            if (c) {
+              // Block off: cap below the wall threshold so the cat never
+              // blocks; it still peeks/stares/sits.
+              const capped = settings.cat.block ? d : Math.min(d, 0.90);
+              c.setStage(DBCat.stage(capped));
+            }
+          } else if (cat) {
+            try { cat.destroy(); } catch (err) { /* ignore */ }
+            cat = null;
+          }
+        }
       } else {
         de.style.removeProperty('--d');
         de.classList.remove('db-blur', 'db-glitch', 'db-shake');
         if (overlay && overlay.isConnected) overlay.remove();
+        if (cat) {
+          try { cat.destroy(); } catch (err) { /* ignore */ }
+          cat = null;
+        }
       }
     }
 
@@ -485,7 +534,7 @@
     }
     setInterval(loop, 250);
 
-    // ---- Test hook (file:// harness only, never real sites) ----------------
+    // ---- Test hook (file:// and localhost harness only, never real sites) ---
     if (isFileHarness) {
       window.__db = {
         set(d) { state.d = clamp01(d); },

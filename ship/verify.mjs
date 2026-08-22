@@ -21,7 +21,7 @@ const ok = (name, pass, extra = '') => {
 const ctx = await chromium.launchPersistentContext(PROFILE, {
   executablePath: '/home/ubuntu/.cache/ms-playwright/chromium-1217/chrome-linux/chrome',
   headless: true,
-  args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`],
+  args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`, '--disable-gpu'],
 });
 
 // ---- service worker -------------------------------------------------------
@@ -50,7 +50,7 @@ const cfg = await sw.evaluate(async () => {
     configSites: res.dbConfig ? res.dbConfig.data.sites.length : 0,
   };
 });
-ok('manifest version matches release', cfg.version === '0.3.0', cfg.version);
+ok('manifest version matches release', cfg.version === '0.4.0', cfg.version);
 // The fetch is async after install; poll storage for it (up to 30s — the
 // GitHub raw fetch can be slow/flaky from some networks).
 let configSites = cfg.configSites;
@@ -206,6 +206,78 @@ await sw.evaluate(() => chrome.storage.local.set({
 }));
 await e2eB.waitForTimeout(1500);
 
+// ---- companion cat: appear -> wall the feed -> pet-to-heal -> toggle off ---
+await sw.evaluate((dk) => chrome.storage.local.set({
+  settings: {
+    sites: { other: true }, sensitivity: 1, timeLimit: { enabled: false, minutes: 60 },
+    effects: { blur: true, cracks: true, glitch: true, shake: true, kill: true },
+    healSpeed: 1, cat: { enabled: true, block: true, heal: true },
+  },
+  usage: { date: dk, seconds: {} },
+}), today());
+await e2eB.waitForTimeout(1200);
+
+// stage 1: peeking cat shows up at modest damage
+await sw.evaluate(() => chrome.storage.local.set({ damage: { all: { d: 0.3, t: Date.now() } } }));
+await e2eB.waitForTimeout(1500);
+const catLow = await e2eB.evaluate(() => {
+  const c = document.getElementById('db-cat');
+  return { present: !!c, stage: c ? c.getAttribute('data-stage') : null, blocked: !!(c && c.classList.contains('db-cat-block')) };
+});
+ok('cat appears at low damage', catLow.present && catLow.stage === '1' && !catLow.blocked, JSON.stringify(catLow));
+
+// stage 4: full damage puts the cat wall over the feed
+await sw.evaluate(() => chrome.storage.local.set({ damage: { all: { d: 1, t: Date.now() } } }));
+await e2eB.waitForTimeout(1500);
+const catWall = await e2eB.evaluate(() => {
+  const c = document.getElementById('db-cat');
+  return {
+    stage: c ? c.getAttribute('data-stage') : null,
+    blocked: !!(c && c.classList.contains('db-cat-block')),
+    wallText: c ? /FEED BLOCKED/i.test(c.textContent) : false,
+  };
+});
+ok('cat walls the feed at full damage', catWall.stage === '4' && catWall.blocked && catWall.wallText, JSON.stringify(catWall));
+
+// pet x3 (spaced past the cooldown) -> heals ~0.35 and drops out of block
+await e2eB.click('#db-cat');
+await e2eB.waitForTimeout(350);
+await e2eB.click('#db-cat');
+await e2eB.waitForTimeout(350);
+await e2eB.click('#db-cat');
+await e2eB.waitForTimeout(1000);
+const catHealed = await e2eB.evaluate(() => ({
+  d: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--d').trim()) || 0,
+  stage: (document.getElementById('db-cat') || {}).getAttribute
+    ? document.getElementById('db-cat').getAttribute('data-stage')
+    : null,
+  blocked: !!(document.getElementById('db-cat') && document.getElementById('db-cat').classList.contains('db-cat-block')),
+}));
+ok('petting the cat thrice heals damage', catHealed.d > 0.45 && catHealed.d < 0.8, `d=${catHealed.d.toFixed(3)}`);
+ok('heal releases the cat wall', !catHealed.blocked && catHealed.stage !== '4', JSON.stringify(catHealed));
+
+// cat disabled -> widget removed entirely
+await sw.evaluate(() => chrome.storage.local.set({
+  settings: {
+    sites: { other: true }, sensitivity: 1, timeLimit: { enabled: false, minutes: 60 },
+    effects: { blur: true, cracks: true, glitch: true, shake: true, kill: true },
+    healSpeed: 1, cat: { enabled: false },
+  },
+}));
+await e2eB.waitForTimeout(1200);
+const catOff = await e2eB.evaluate(() => !!document.getElementById('db-cat'));
+ok('cat toggle removes the widget', !catOff);
+
+// restore defaults so the popup test sees a clean slate
+await sw.evaluate(() => chrome.storage.local.set({
+  settings: {
+    sites: { other: true }, sensitivity: 1, timeLimit: { enabled: false, minutes: 60 },
+    effects: { blur: true, cracks: true, glitch: true, shake: true, kill: true },
+    healSpeed: 1, cat: { enabled: true, block: true, heal: true },
+  },
+}));
+await e2eB.waitForTimeout(1200);
+
 // ---- SW usage accumulator: both tabs' time is kept, no lost updates ---------
 await sw.evaluate((dk) => chrome.storage.local.set({
   settings: { sites: { other: true }, timeLimit: { enabled: true, minutes: 720 }, healSpeed: 1, effects: { blur: true, cracks: true, glitch: true, shake: true, kill: true } },
@@ -215,7 +287,7 @@ await e2e.waitForTimeout(1200);
 await wheel(e2e, 5, 1000);
 await e2eB.waitForTimeout(1200);
 await wheel(e2eB, 5, 1000);
-await e2e.waitForTimeout(7000); // both tabs report through the SW
+await e2e.waitForTimeout(9000); // both tabs report through the SW (active window is 10s)
 const both = await sw.evaluate(async () => (await chrome.storage.local.get('usage')).usage.seconds.other || 0);
 ok('usage accumulates from both tabs (SW single writer)', both >= 12, `seconds=${both}`);
 
@@ -265,8 +337,11 @@ const popupState = await popup.evaluate(() => ({
   hasHealSpeed: !!document.getElementById('heal-speed'),
   hasPerSite: !!document.getElementById('tl-other'),
   hasReset: !!document.getElementById('btn-reset'),
+  hasCatEnabled: !!document.getElementById('cat-enabled'),
+  hasCatBlock: !!document.getElementById('cat-block'),
+  hasCatHeal: !!document.getElementById('cat-heal'),
 }));
-ok('popup renders all toggles', popupState.hasOther && popupState.hasSlider && popupState.hasTimeEnabled && popupState.hasTimeMinutes && popupState.hasEffKill && popupState.hasEffCracks && popupState.hasPresets && popupState.hasHealSpeed && popupState.hasPerSite && popupState.hasReset, JSON.stringify(popupState));
+ok('popup renders all toggles', popupState.hasOther && popupState.hasSlider && popupState.hasTimeEnabled && popupState.hasTimeMinutes && popupState.hasEffKill && popupState.hasEffCracks && popupState.hasPresets && popupState.hasHealSpeed && popupState.hasPerSite && popupState.hasReset && popupState.hasCatEnabled && popupState.hasCatBlock && popupState.hasCatHeal, JSON.stringify(popupState));
 // Toggle through the real input event (switches hide the checkbox visually,
 // so drive the element directly rather than Playwright's actionability check).
 await popup.evaluate(() => {
@@ -279,6 +354,25 @@ const saved = await sw.evaluate(async () => (await chrome.storage.local.get('set
 ok('popup toggle persists to storage', saved === false, `other=${saved}`);
 await popup.evaluate(() => {
   const el = document.getElementById('site-other');
+  el.checked = true;
+  el.dispatchEvent(new Event('change'));
+});
+await popup.waitForTimeout(400);
+
+// cat toggle persists to storage
+await popup.evaluate(() => {
+  const el = document.getElementById('cat-enabled');
+  el.checked = false;
+  el.dispatchEvent(new Event('change'));
+});
+await popup.waitForTimeout(600);
+const catSaved = await sw.evaluate(async () => {
+  const s = (await chrome.storage.local.get('settings')).settings;
+  return s.cat && s.cat.enabled === false && s.cat.block !== undefined;
+});
+ok('popup cat toggle persists to storage', catSaved === true);
+await popup.evaluate(() => {
+  const el = document.getElementById('cat-enabled');
   el.checked = true;
   el.dispatchEvent(new Event('change'));
 });
