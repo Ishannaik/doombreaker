@@ -1,12 +1,12 @@
-# DoomBreaker — Chrome Web Store listing kit (v0.2.0)
+# DoomBreaker — Chrome Web Store listing kit (v0.3.0)
 
 Everything needed for the Web Store upload. Screenshots are 1280x800 (store
 requirement: 1280x800 or 640x400), taken from the real extension running live.
 
 ## Upload checklist
 1. Go to https://chrome.google.com/webstore/devconsole → **Add new item**
-2. Upload `doombreaker-0.2.0.zip` (from the GitHub release:
-   https://github.com/Ishannaik/doombreaker/releases/tag/v0.2.0)
+2. 2. Upload `doombreaker-0.3.0.zip` (from the GitHub release:
+   https://github.com/Ishannaik/doombreaker/releases/tag/v0.3.0)
 3. Fill in the fields below
 4. Upload the 4 screenshots
 5. Submit for review
