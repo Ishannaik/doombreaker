@@ -39,7 +39,7 @@
       timeLimit: { enabled: false, minutes: 60, perSite: {} },
       effects: { blur: true, cracks: true, glitch: true, shake: true, kill: true },
       healSpeed: 1,
-      cat: { enabled: true, block: true, heal: true },
+      cat: { enabled: true, block: true, heal: true, mode: 'companion', breakMin: 2 },
     };
     let enabled = true;           // settings.sites[site.key]
     let active = false;           // site.active(pathname)
@@ -56,6 +56,8 @@
     let killOn = false;           // feed-kill message state
 
     let cat = null;               // companion-cat widget (cat.js), lazy-built
+    let gate = null;              // gatekeeper overlay (gatekeeper.js), lazy-built
+    let gateUntil = 0;            // shared break end (ms epoch), mirrored in storage 'catBreak'
 
     let damageCache = {};         // full {damage:{[siteKey]:{d,t}}} value
     let lastWriteT = 0;           // t of our last storage write (or newest adopted)
@@ -93,6 +95,10 @@
               enabled: s.cat.enabled !== false, // default on
               block: s.cat.block !== false,
               heal: s.cat.heal !== false,
+              // 'companion' = pet-to-heal wall; 'gatekeeper' = the viral
+              // cat that sits on the page for a forced countdown break.
+              mode: s.cat.mode === 'gatekeeper' ? 'gatekeeper' : 'companion',
+              breakMin: Number(s.cat.breakMin) || 2,
             }
           : settings.cat,
       };
@@ -359,8 +365,12 @@
             if (c) {
               // Block off: cap below the wall threshold so the cat never
               // blocks; it still peeks/stares/sits.
-              const capped = settings.cat.block ? d : Math.min(d, 0.90);
-              c.setStage(DBCat.stage(capped));
+              // Gatekeeper mode: the companion only builds up (stages 1-3);
+              // the gatekeeper overlay owns the wall, and the small cat
+              // hides while the big one sits.
+              const gk = settings.cat.mode === 'gatekeeper';
+              const capped = (settings.cat.block && !gk) ? d : Math.min(d, 0.90);
+              c.setStage((gk && gateUntil) ? 0 : DBCat.stage(capped));
             }
           } else if (cat) {
             try { cat.destroy(); } catch (err) { /* ignore */ }
@@ -394,10 +404,11 @@
     function loadStorage() {
       if (!(cr && cr.storage && cr.storage.local)) { storageLoaded = true; return; }
       try {
-        cr.storage.local.get(['damage', 'settings', DBSites.CONFIG_KEY, 'usage'], (res) => {
+        cr.storage.local.get(['damage', 'settings', DBSites.CONFIG_KEY, 'usage', 'catBreak'], (res) => {
           try {
             res = res || {};
             if (res.settings) applySettings(res.settings);
+            if (res.catBreak && typeof res.catBreak.until === 'number') gateUntil = res.catBreak.until;
             if (res[DBSites.CONFIG_KEY]) applyConfig(res[DBSites.CONFIG_KEY].data);
             if (res.usage && typeof res.usage === 'object') {
               usageStored = (res.usage.date === DBMeter.dateKey() && res.usage.seconds && typeof res.usage.seconds === 'object')
@@ -428,6 +439,10 @@
             if (area !== 'local') return;
             if (changes.settings && changes.settings.newValue) {
               applySettings(changes.settings.newValue);
+            }
+            if (changes.catBreak) {
+              const nv = changes.catBreak.newValue;
+              gateUntil = (nv && typeof nv.until === 'number') ? nv.until : 0;
             }
             if (changes[DBSites.CONFIG_KEY] && changes[DBSites.CONFIG_KEY].newValue) {
               applyConfig(changes[DBSites.CONFIG_KEY].newValue.data);
@@ -492,6 +507,41 @@
       return secs >= (siteLimit || tl.minutes) * 60;
     }
 
+    // ---- Gatekeeper cat mode -----------------------------------------------
+    // The break end lives in storage so a reload, a new tab, or another site
+    // all see the same sitting cat. No escape until the clock runs out.
+    function setBreak(until) {
+      gateUntil = until;
+      try {
+        if (cr && cr.storage && cr.storage.local) cr.storage.local.set({ catBreak: { until: until } });
+      } catch (e) { /* ignore */ }
+    }
+
+    function gateTick(now) {
+      if (typeof DBGate === 'undefined') return false;
+      const on = enabled && active && settings.cat.enabled && settings.cat.mode === 'gatekeeper';
+      if (!on) {
+        if (gate) { try { gate.destroy(); } catch (e) { /* ignore */ } gate = null; }
+        return false;
+      }
+      if (!gateUntil && storageLoaded && state.d >= DBGate.TRIGGER) {
+        setBreak(now + DBGate.breakMs(settings.cat.breakMin));
+      }
+      if (gateUntil && DBGate.remaining(gateUntil, now) <= 0) {
+        // Break served: the cat leaves and the page heals fully.
+        setBreak(0);
+        state.d = 0;
+        flushStorage(now);
+      }
+      if (!gate || !gate.el.isConnected) {
+        if (!document.documentElement) return false;
+        try { gate = DBGate.create(); } catch (e) { gate = null; return false; }
+      }
+      if (gateUntil) gate.show(gateUntil, now);
+      else gate.hide();
+      return !!gateUntil;
+    }
+
     // ---- Main loop (all DOM writes happen here) ----------------------------
     function loop() {
       try {
@@ -517,9 +567,10 @@
         const effD = forced ? 1 : state.d;
         const ef = settings.effects;
         applyVisuals(effD);
-        if (forced || (ef.kill && state.d >= 0.995 && !killOn)) {
+        const sitting = gateTick(now);
+        if (forced || (sitting && ef.kill) || (ef.kill && state.d >= 0.995 && !killOn)) {
           if (!killOn) { killOn = true; sendFeedKill(true); }
-        } else if (state.d < 0.85 && killOn) {
+        } else if (state.d < 0.85 && killOn && !sitting) {
           killOn = false;
           sendFeedKill(false);
         } else if (!ef.kill && killOn) {

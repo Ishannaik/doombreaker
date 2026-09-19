@@ -29,10 +29,13 @@ Optional daily time limit (off by default): set minutes per day in the popup, pl
 
 Companion cat (on by default): as damage rises the cat peeks in (`0.25`), stares you down (`0.55`), sits on your feed (`0.75`), and at `0.92` plants a full "FEED BLOCKED" wall over the page. Pet it three times to heal a chunk of damage and keep scrolling — reflection instead of guilt. Popup toggles: cat on/off, block-the-feed on/off, pet-to-heal on/off.
 
+**Gatekeeper mode** (popup → Cat mode). The viral "cat stops your doomscrolling" meme. At `0.92` a giant orange cat walks onto the page, sits in the middle, and a countdown starts (1, 2 or 5 min). You cannot pet it away. Clicks, wheel and scroll keys do nothing while it sits. The break end time is stored in `chrome.storage.local` (`catBreak`), so a reload, a new tab or another site shows the same cat. When the timer ends the cat walks off and damage resets to 0. The small companion cat still peeks, stares and sits on the way up.
+
 `prefers-reduced-motion` disables shake/glitch. Damage syncs across tabs via `chrome.storage.local`. Permissions: `storage`, `declarativeNetRequest`, `alarms`.
 
 ## Dev
-- Unit tests: `node test/meter.test.mjs` and `node test/sites.test.mjs`
+- Unit tests: `npm test` (meter, sites, cat + gatekeeper)
+- Gatekeeper E2E: serve on :8377, then `node ship/gate-e2e.mjs`
 - Visual harness: serve the repo root (`python -m http.server 8377`) and open `http://localhost:8377/test/harness.html`. Buttons drive damage levels through the real pipeline.
 - Website: serve the repo root and open `http://localhost:8377/site/index.html` — landing page with live damage demo (custom elements, SEO metadata).
 

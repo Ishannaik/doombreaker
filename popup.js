@@ -12,7 +12,7 @@ const DEFAULTS = {
   timeLimit: { enabled: false, minutes: 60, perSite: {} },
   effects: { blur: true, cracks: true, glitch: true, shake: true, kill: true },
   healSpeed: 1,
-  cat: { enabled: true, block: true, heal: true }
+  cat: { enabled: true, block: true, heal: true, mode: 'companion', breakMin: 2 }
 };
 
 const PRESETS = {
@@ -26,6 +26,9 @@ const sensVal = document.getElementById('sens-val');
 const timeEnabled = document.getElementById('time-enabled');
 const timeMinutes = document.getElementById('time-minutes');
 const healSpeed = document.getElementById('heal-speed');
+const catMode = document.getElementById('cat-mode');
+const catBreak = document.getElementById('cat-break');
+const catBreakRow = document.getElementById('cat-break-row');
 
 function siteCheckbox(k) { return document.getElementById('site-' + k); }
 function effCheckbox(k) { return document.getElementById('eff-' + k); }
@@ -41,6 +44,8 @@ function currentSettings() {
 
   const cat = {};
   for (const k of CAT_KEYS) cat[k] = catCheckbox(k).checked;
+  cat.mode = catMode.value === 'gatekeeper' ? 'gatekeeper' : 'companion';
+  cat.breakMin = Number(catBreak.value) || 2;
 
   const perSite = {};
   for (const k of SITE_KEYS) {
@@ -62,7 +67,17 @@ function currentSettings() {
   };
 }
 
+// Gatekeeper has no petting and its own wall, so the companion-only
+// toggles hide and the break length shows.
+function syncCatMode() {
+  const gk = catMode.value === 'gatekeeper';
+  catBreakRow.hidden = !gk;
+  catCheckbox('block').closest('.row').hidden = gk;
+  catCheckbox('heal').closest('.row').hidden = gk;
+}
+
 function save() {
+  syncCatMode();
   sensVal.textContent = slider.value;
   chrome.storage.local.set({ settings: currentSettings() });
 }
@@ -86,6 +101,9 @@ chrome.storage.local.get('settings').then(function (res) {
 
   const cat = Object.assign({}, DEFAULTS.cat, s.cat || {});
   for (const k of CAT_KEYS) catCheckbox(k).checked = cat[k] !== false;
+  catMode.value = cat.mode === 'gatekeeper' ? 'gatekeeper' : 'companion';
+  catBreak.value = String([1, 2, 5].indexOf(Number(cat.breakMin)) !== -1 ? cat.breakMin : 2);
+  syncCatMode();
 
   const tl = s.timeLimit || DEFAULTS.timeLimit;
   timeEnabled.checked = !!tl.enabled;
@@ -103,6 +121,8 @@ for (const k of EFFECT_KEYS) effCheckbox(k).addEventListener('change', save);
 for (const k of SITE_KEYS) tlInput(k).addEventListener('change', save);
 for (const k of CAT_KEYS) catCheckbox(k).addEventListener('change', save);
 timeEnabled.addEventListener('change', save);
+catMode.addEventListener('change', save);
+catBreak.addEventListener('change', save);
 timeMinutes.addEventListener('change', save);
 healSpeed.addEventListener('change', save);
 slider.addEventListener('input', save);

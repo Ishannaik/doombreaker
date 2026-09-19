@@ -171,6 +171,7 @@
     text-align: center;
   }
   .ps-row input:focus { border-color: var(--accent); outline: none; }
+  [hidden] { display: none !important; }
   .presets { display: flex; gap: 6px; }
   .preset {
     flex: 1;
@@ -331,6 +332,21 @@
   <section class="group">
     <h2 class="group-title">Companion cat</h2>
     <label class="row"><span class="row-name">Cat</span><span class="switch"><input type="checkbox" id="cat-enabled" checked><span class="track"></span></span></label>
+    <div class="sens-head heal-head">
+      <label for="cat-mode">Cat mode</label>
+      <select id="cat-mode" class="heal-select">
+        <option value="companion" selected>Companion (pet x3)</option>
+        <option value="gatekeeper">Gatekeeper (sits, timer)</option>
+      </select>
+    </div>
+    <div class="sens-head heal-head" id="cat-break-row">
+      <label for="cat-break">Break length</label>
+      <select id="cat-break" class="heal-select">
+        <option value="1">1 min</option>
+        <option value="2" selected>2 min</option>
+        <option value="5">5 min</option>
+      </select>
+    </div>
     <label class="row"><span class="row-name">Blocks the feed</span><span class="switch"><input type="checkbox" id="cat-block" checked><span class="track"></span></span></label>
     <label class="row"><span class="row-name">Pet to heal</span><span class="switch"><input type="checkbox" id="cat-heal" checked><span class="track"></span></span></label>
   </section>

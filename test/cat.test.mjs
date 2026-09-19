@@ -48,3 +48,24 @@ assert.match(DBCat.svg(4), /PET THE CAT/i, 'block wall explains pet-to-continue'
 assert.equal(typeof DBCat.create, 'function', 'create exists');
 
 console.log('cat.test OK');
+
+// --- Gatekeeper mode (gatekeeper.js): pure helpers ---
+const DBGate = require('../gatekeeper.js');
+assert.equal(DBGate.breakMs(1), 60000, '1 min break');
+assert.equal(DBGate.breakMs(5), 300000, '5 min break');
+assert.equal(DBGate.breakMs(3), 120000, 'unknown choice falls back to default 2 min');
+assert.equal(DBGate.breakMs('junk'), 120000, 'garbage falls back to default');
+assert.equal(DBGate.remaining(10000, 4000), 6000, 'remaining counts down');
+assert.equal(DBGate.remaining(10000, 20000), 0, 'remaining never negative');
+assert.equal(DBGate.remaining(0, 5), 0, 'no break = nothing remaining');
+assert.equal(DBGate.fmt(120000), '2:00', 'formats whole minutes');
+assert.equal(DBGate.fmt(61000), '1:01', 'pads seconds');
+assert.equal(DBGate.fmt(500), '0:01', 'rounds up so it never shows 0:00 early');
+assert.equal(DBGate.fmt(0), '0:00', 'zero is 0:00');
+assert.equal(DBGate.TRIGGER, DBCat.STAGES[3], 'gatekeeper fires at the same damage as the companion wall');
+const g = DBGate.svg();
+assert.equal(g, DBGate.svg(), 'gatekeeper SVG is deterministic');
+assert.match(g, /dbg-tail/, 'tail is animatable');
+assert.match(g, /dbg-eyes/, 'eyes are animatable');
+assert.equal(typeof DBGate.create, 'function', 'create exists');
+console.log('gatekeeper.test OK');

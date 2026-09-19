@@ -50,7 +50,7 @@ const cfg = await sw.evaluate(async () => {
     configSites: res.dbConfig ? res.dbConfig.data.sites.length : 0,
   };
 });
-ok('manifest version matches release', cfg.version === '0.4.0', cfg.version);
+ok('manifest version matches release', cfg.version === '0.5.0', cfg.version);
 // The fetch is async after install; poll storage for it (up to 30s — the
 // GitHub raw fetch can be slow/flaky from some networks).
 let configSites = cfg.configSites;
