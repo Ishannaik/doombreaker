@@ -40,3 +40,6 @@ Companion cat (on by default): as damage rises the cat peeks in (`0.25`), stares
 - Website: serve the repo root and open `http://localhost:8377/site/index.html` — landing page with live damage demo (custom elements, SEO metadata).
 
 Spec: `docs/superpowers/specs/2026-07-06-doombreaker-design.md`
+
+## Community
+Join the Discord: https://discord.gg/KKvtRhQvRv
