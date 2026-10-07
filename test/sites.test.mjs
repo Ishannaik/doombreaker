@@ -15,8 +15,13 @@ function eq(actual, expected, label) {
 
 console.log('config/sites.json valid:');
 eq(DBSites.validConfig(remote), true, 'remote config is valid');
+eq(DBSites.validConfig(DBSites.DEFAULT_CONFIG), true, 'offline fallback config is valid');
 eq(DBSites.validConfig(null), false, 'null is invalid');
 eq(DBSites.validConfig({ sites: [{ key: 'x' }] }), false, 'missing host is invalid');
+eq(DBSites.validConfig({ ...remote, sites: [{ key: 'x' }] }), false, 'missing host with valid kill config is invalid');
+eq(DBSites.validConfig({ ...remote, sites: [{ key: 'x', host: '(' }] }), false, 'invalid host regex is rejected');
+eq(DBSites.validConfig({ ...remote, sites: [...remote.sites, { key: 'broken', host: '(' }] }), false, 'one invalid host rejects the whole config');
+eq(DBSites.validConfig({ ...remote, sites: [{ key: 'other', host: '' }] }), true, 'empty valid host regex is accepted');
 
 console.log('host matching (subdomains + bare):');
 eq(DBSites.matchSite(remote, 'x.com').key, 'x', 'x.com');
