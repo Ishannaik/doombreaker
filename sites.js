@@ -33,7 +33,13 @@ const DBSites = {
     if (!Array.isArray(c.sites) || c.sites.length === 0) return false;
     if (!c.kill || typeof c.kill !== 'object') return false;
     return c.sites.every(function (s) {
-      return s && typeof s.key === 'string' && typeof s.host === 'string';
+      if (!s || typeof s.key !== 'string' || typeof s.host !== 'string') return false;
+      try {
+        new RegExp(s.host);
+        return true;
+      } catch (e) {
+        return false;
+      }
     });
   },
 
