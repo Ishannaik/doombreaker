@@ -14,6 +14,17 @@ No lockouts. No guilt modals. The discomfort does the work.
 
 Shorts/Reels damage per *video watched* (~3× faster than scrolling).
 
+## Adding a new site
+
+Use the same site key in each file below:
+
+1. Add an entry to `sites` in `config/sites.json` with a unique `key` and a `host` regex. Set `mode` and any path restrictions to match the site. Add an optional `kill` entry under the same key only for network patterns you have verified; leave it out if those paths are unknown.
+2. Mirror the entry and any `kill` patterns in `DBSites.DEFAULT_CONFIG` in `sites.js`, so the site also works before the first download or when offline.
+3. Add the key to `SITE_KEYS` and `DEFAULTS.sites` in `popup.js`. In `popup.html`, add a checkbox with `id="site-<key>"` and a per-site minutes input with `id="tl-<key>"` in `.ps-grid`, following the existing rows. `currentSettings()` reads both controls for every `SITE_KEYS` entry, so omitting either can break saving settings.
+4. Check `manifest.json` for any additional host access the integration needs. Currently `content_scripts.matches` is `["<all_urls>"]`, `permissions` includes `declarativeNetRequest`, and no `host_permissions` is declared. If the integration needs additional host permissions, add the narrowest matching host pattern to `host_permissions`; adding a config entry alone does not grant new permissions.
+
+Extend `test/sites.test.mjs` to cover the new site's host and path matching, including an unrelated host that should still fall back to `other`, then run `npm test`.
+
 ## Install (dev)
 1. `chrome://extensions` → enable **Developer mode**
 2. **Load unpacked** → select this folder
